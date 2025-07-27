@@ -1,0 +1,6 @@
+hard_tabs = false
+tab_spaces = 2
+
+group_imports = "StdExternalCrate"
+blank_lines_upper_bound = 2
+match_block_trailing_comma = true 
