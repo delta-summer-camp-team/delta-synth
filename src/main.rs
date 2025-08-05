@@ -1,37 +1,35 @@
 mod audio_modules;
 mod audiomodules;
 
-
+use audio_modules::AudioModule;
+use audiomodules::oscillator::Oscillator;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample, StreamConfig};
 use std::f64::consts::PI;
 use std::sync::{Arc, Mutex};
-use audio_modules::AudioModule;
-use audiomodules::oscillator::Oscillator;
 
 fn main() {
-    let modules = build_audio_modules();
-    let module = modules[0].clone();
+  let modules = build_audio_modules();
+  let module = modules[0].clone();
 
-    let next_sample = Arc::new(Mutex::new(move || {
-        let mut buffer = [0.0_f32; 1];
-        module.lock().unwrap().process(&mut buffer);
-        let sample = buffer[0] as f64;
-        (sample, sample)
-    }));
+  let next_sample = Arc::new(Mutex::new(move || {
+    let mut buffer = [0.0_f32; 1];
+    module.lock().unwrap().process(&mut buffer);
+    let sample = buffer[0] as f64;
+    (sample, sample)
+  }));
 
-    let stream = run_output(next_sample.clone());
-    std::thread::sleep(std::time::Duration::from_secs(5));
-    drop(stream);
+  let stream = run_output(next_sample.clone());
+  std::thread::sleep(std::time::Duration::from_secs(5));
+  drop(stream);
 }
 
-
 fn build_audio_modules() -> Vec<Arc<Mutex<dyn AudioModule>>> {
-    let osc = Oscillator::new(440.0, 44100.0);
+  let osc = Oscillator::new(440.0, 44100.0);
 
-    vec![
-        Arc::new(Mutex::new(osc)), //возвращ вектор 
-    ]
+  vec![
+    Arc::new(Mutex::new(osc)), //возвращ вектор
+  ]
 }
 
 /*
@@ -51,86 +49,78 @@ let next_sample = {
     };
 */
 
-
-
-
 fn create_c_major_generator(sample_rate: f64) -> Arc<Mutex<dyn FnMut() -> (f64, f64) + Send>> {
-    let freqs = [261.6, 329.628, 391.995]; // C, E, G
-    let mut phases = vec![0.0; freqs.len()];
-    let phase_incs: Vec<f64> = freqs
-        .iter()
-        .map(|f| 2.0 * PI * f / sample_rate)
-        .collect();
+  let freqs = [261.6, 329.628, 391.995]; // C, E, G
+  let mut phases = vec![0.0; freqs.len()];
+  let phase_incs: Vec<f64> = freqs.iter().map(|f| 2.0 * PI * f / sample_rate).collect();
 
-    Arc::new(Mutex::new(move || {
-        let mut sample = 0.0;
-        for (i, phase) in phases.iter_mut().enumerate() {
-            *phase += phase_incs[i];
-            if *phase > 2.0 * PI {
-                *phase -= 2.0 * PI;
-            }
-            sample += (*phase).sin();
-        }
-        sample /= freqs.len() as f64; // normalize volume
-        (sample, sample) // stereo
-    }))
+  Arc::new(Mutex::new(move || {
+    let mut sample = 0.0;
+    for (i, phase) in phases.iter_mut().enumerate() {
+      *phase += phase_incs[i];
+      if *phase > 2.0 * PI {
+        *phase -= 2.0 * PI;
+      }
+      sample += (*phase).sin();
+    }
+    sample /= freqs.len() as f64; // normalize volume
+    (sample, sample) // stereo
+  }))
 }
 
-fn run_output(
-    next_sample: Arc<Mutex<dyn FnMut() -> (f64, f64) + Send>>,
-) -> cpal::Stream {
-    let host = cpal::default_host();
-    let device = host
-        .default_output_device()
-        .expect("failed to find a default output device");
-    let config = device.default_output_config().unwrap();
-    match config.sample_format() {  
-        SampleFormat::F32 => run_synth::<f32>(next_sample, device, config.into()),
-        SampleFormat::I16 => run_synth::<i16>(next_sample, device, config.into()),
-        SampleFormat::U16 => run_synth::<u16>(next_sample, device, config.into()),
-        _ => panic!("Unsupported format"),
-    }  
+fn run_output(next_sample: Arc<Mutex<dyn FnMut() -> (f64, f64) + Send>>) -> cpal::Stream {
+  let host = cpal::default_host();
+  let device = host
+    .default_output_device()
+    .expect("failed to find a default output device");
+  let config = device.default_output_config().unwrap();
+  match config.sample_format() {
+    SampleFormat::F32 => run_synth::<f32>(next_sample, device, config.into()),
+    SampleFormat::I16 => run_synth::<i16>(next_sample, device, config.into()),
+    SampleFormat::U16 => run_synth::<u16>(next_sample, device, config.into()),
+    _ => panic!("Unsupported format"),
+  }
 }
 
 fn run_synth<T>(
-    next_sample: Arc<Mutex<dyn FnMut() -> (f64, f64) + Send>>,
-    device: cpal::Device,
-    config: StreamConfig,
+  next_sample: Arc<Mutex<dyn FnMut() -> (f64, f64) + Send>>,
+  device: cpal::Device,
+  config: StreamConfig,
 ) -> cpal::Stream
 where
-    T: SizedSample + FromSample<f64> + 'static,
+  T: SizedSample + FromSample<f64> + 'static,
 {
-    let channels = config.channels as usize;
-    let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
+  let channels = config.channels as usize;
+  let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
-    let stream = device
-        .build_output_stream(
-            &config,
-            move |data: &mut [T], _| {
-                write_data(data, channels, &mut *next_sample.lock().unwrap());
-            },
-            err_fn,
-            None,
-        )
-        .expect("failed to build output stream");
+  let stream = device
+    .build_output_stream(
+      &config,
+      move |data: &mut [T], _| {
+        write_data(data, channels, &mut *next_sample.lock().unwrap());
+      },
+      err_fn,
+      None,
+    )
+    .expect("failed to build output stream");
 
-    stream.play().expect("Failed to play stream");
-    println!("Audio stream playing");
+  stream.play().expect("Failed to play stream");
+  println!("Audio stream playing");
 
-    stream
+  stream
 }
 
 fn write_data<T: SizedSample + FromSample<f64>>(
-    output: &mut [T],
-    channels: usize,
-    next_sample: &mut dyn FnMut() -> (f64, f64),
+  output: &mut [T],
+  channels: usize,
+  next_sample: &mut dyn FnMut() -> (f64, f64),
 ) {
-    for frame in output.chunks_mut(channels) {
-        let (left, right) = next_sample();
-        let l: T = T::from_sample(left);
-        let r: T = T::from_sample(right);
-        for (i, sample) in frame.iter_mut().enumerate() {
-            *sample = if i % 2 == 0 { l } else { r };
-        }
+  for frame in output.chunks_mut(channels) {
+    let (left, right) = next_sample();
+    let l: T = T::from_sample(left);
+    let r: T = T::from_sample(right);
+    for (i, sample) in frame.iter_mut().enumerate() {
+      *sample = if i % 2 == 0 { l } else { r };
     }
+  }
 }
