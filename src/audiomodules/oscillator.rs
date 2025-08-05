@@ -2,20 +2,19 @@ use crate::audio_modules::AudioModule;
 use std::f32::consts::PI;
 
 pub struct Oscillator {
-    pub phase: f32,
-    pub frequency: f32,
-    pub sample_rate: f32,
+  pub phase: f32,
+  pub frequency: f32,
+  pub sample_rate: f32,
 }
 
-
 impl Oscillator {
-    pub fn new(frequency: f32, sample_rate: f32) -> Self {
-        Self {
-            phase: 0.0,
-            frequency,
-            sample_rate,
-        }
+  pub fn new(frequency: f32, sample_rate: f32) -> Self {
+    Self {
+      phase: 0.0,
+      frequency,
+      sample_rate,
     }
+  }
 }
 
 impl AudioModule for Oscillator {
