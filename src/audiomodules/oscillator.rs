@@ -20,13 +20,13 @@ impl Oscillator {
 
 impl AudioModule for Oscillator {
     fn process(&mut self, output: &mut [f32]) {
-        let phase_increment = self.frequency / self.sample_rate; //phase_increment — это на сколько нужно сдвинуть фазу при каждом семпле, чтобы получить self.frequency  
-        for sample in output.iter_mut() { //Проходим по всем элементам буфера output
-            self.phase += phase_increment; //Фаза увеличивается на phase_increment
-            if self.phase > 1.0 { // если выходит за границу то она вычитаеться что бы остаться в диапазоне
+        let phase_increment = self.frequency / self.sample_rate;  
+        for sample in output.iter_mut() { 
+            self.phase += phase_increment; 
+            if self.phase > 1.0 { 
                 self.phase -= 1.0;
             }
-            *sample = (self.phase * 2.0 * PI).sin(); // sample. фазу умножаем на 2pi - переводим в радианы и в синус
+            *sample = (self.phase * 2.0 * PI).sin();
             
 
         }
