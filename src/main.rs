@@ -11,7 +11,6 @@ fn main() {
 
 }
 
-
 fn build_audio_modules() -> Vec<Arc<Mutex<dyn AudioModule>>> {
     let osc = Oscillator::new(440.0, 44100.0);
 
