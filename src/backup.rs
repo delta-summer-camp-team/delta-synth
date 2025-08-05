@@ -1,37 +1,16 @@
-mod audio_modules;
-mod audiomodules;
-
-
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{FromSample, SampleFormat, SizedSample, StreamConfig};
 use std::f64::consts::PI;
 use std::sync::{Arc, Mutex};
-use audio_modules::AudioModule;
-use audiomodules::oscillator::Oscillator;
 
 fn main() {
-    let modules = build_audio_modules();
-    let module = modules[0].clone();
+    let sample_rate = 44100.0; // or read from config.sample_rate.0
+    let next_sample = create_c_major_generator(sample_rate);
 
-    let next_sample = Arc::new(Mutex::new(move || {
-        let mut buffer = [0.0_f32; 1];
-        module.lock().unwrap().process(&mut buffer);
-        let sample = buffer[0] as f64;
-        (sample, sample)
-    }));
 
     let stream = run_output(next_sample.clone());
     std::thread::sleep(std::time::Duration::from_secs(5));
     drop(stream);
-}
-
-
-fn build_audio_modules() -> Vec<Arc<Mutex<dyn AudioModule>>> {
-    let osc = Oscillator::new(440.0, 44100.0);
-
-    vec![
-        Arc::new(Mutex::new(osc)), //возвращ вектор 
-    ]
 }
 
 /*
@@ -89,7 +68,7 @@ fn run_output(
         SampleFormat::I16 => run_synth::<i16>(next_sample, device, config.into()),
         SampleFormat::U16 => run_synth::<u16>(next_sample, device, config.into()),
         _ => panic!("Unsupported format"),
-    }  
+    }
 }
 
 fn run_synth<T>(
