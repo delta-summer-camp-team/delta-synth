@@ -1,9 +1,13 @@
+mod audio_modules;
+mod audiomodules;
+
+use audio_modules::AudioModule;
+use audiomodules::oscillator::Oscillator;
+use std::sync::{Arc, Mutex, atomic::{Ordering},};
+use crate::audiomodules::oscillator::Waveforma;
+
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{Device, SupportedStreamConfig};
-use std::sync::{
-  atomic::{Ordering},
-  Arc,
-};
 
 use anyhow::Result;
 use midir::{MidiInput, MidiInputConnection};
@@ -11,12 +15,13 @@ use midir::{MidiInput, MidiInputConnection};
 mod synth_state; // подключаем модуль
 use crate::synth_state::SynthState; // импортируем структуру
 
+
 /// Инициализация аудиоустройства и конфигурации
 fn init_audio_device() -> Option<(Device, SupportedStreamConfig)> {
-    let host = cpal::default_host();
-    let device = host.default_output_device()?;
-    let config = device.default_output_config().ok()?;
-    Some((device, config))
+  let host = cpal::default_host();
+  let device = host.default_output_device()?;
+  let config = device.default_output_config().ok()?;
+  Some((device, config))
 }
 
 pub fn init_synth_core() -> Result<(Arc<SynthState>, MidiInputConnection<()>)> {
@@ -59,7 +64,25 @@ pub fn init_synth_core() -> Result<(Arc<SynthState>, MidiInputConnection<()>)> {
   Ok((synth_state, conn_in))
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn build_audio_modules() -> Vec<Arc<Mutex<dyn AudioModule>>> {
+  let osc = Oscillator::new(440.0, 44100.0, Waveforma::Quadrat, 0.5);
+  let osc1 = Oscillator::new(440.0, 44100.0, Waveforma::Sine, 0.5);
+  let osc2 = Oscillator::new(440.0, 44100.0, Waveforma::Saw, 0.5);
+
+
+    vec![
+        Arc::new(Mutex::new(osc)), // Квадрат
+        Arc::new(Mutex::new(osc1)), // син
+        Arc::new(Mutex::new(osc2)), // пила
+
+
+    ]
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>>{
+
+  let modules = build_audio_modules();
+  let _module = modules[0].clone();
   let _ = init_audio_device();
   let (_synth_state, _midi_conn) = init_synth_core()?;
   println!("SynthState готов");
