@@ -30,13 +30,13 @@ impl eframe::App for MyApp {
         |ui| {
           ui.horizontal(|ui| {
             ui.add_space(10.0);
-            ui.add(RotaryKnob::new(&mut self.knob1, 0.0, 1.0).with_label("Knob 1"));
+            ui.add(RotaryKnob::new(&mut self.knob1, -1.0, 1.0).with_label("Knob 1"));
 
             ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::LeftToRight), |ui| {
               ui.heading("RUST SYNTHESATOR");
             });
 
-            ui.add(RotaryKnob::new(&mut self.knob2, 0.0, 1.0).with_label("Knob 2"));
+            ui.add(RotaryKnob::new(&mut self.knob2, -1.0, 1.0).with_label("Knob 2"));
             ui.add_space(10.0);
           });
         },
@@ -67,7 +67,7 @@ impl eframe::App for MyApp {
           ui.horizontal_centered(|ui| {
             for val in &mut self.slider_vals {
               ui.add(
-                egui::Slider::new(val, 0.0..=1.0)
+                egui::Slider::new(val, -1.0..=1.0)
                   .vertical()
                   .text(""),
               );
