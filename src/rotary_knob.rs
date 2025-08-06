@@ -54,7 +54,7 @@ impl<'a> Widget for RotaryKnob<'a> {
     let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::drag());
 
     let center = rect.center();
-    let radius = size * 0.5;
+    let radius = size * 2.0;
 
     // Handle circular drag input
     if response.dragged() {
@@ -101,7 +101,7 @@ impl<'a> Widget for RotaryKnob<'a> {
     // Draw label below knob
     if let Some(label) = label {
       let label_pos = center + Vec2::Y * (size * 0.65);
-      let label_rect = Rect::from_center_size(label_pos, Vec2::new(size, 14.0));
+      let label_rect = Rect::from_center_size(label_pos, Vec2::new(size, 10.0));
       ui.put(
         label_rect,
         Label::new(RichText::new(label).text_style(TextStyle::Small)).wrap(false),
