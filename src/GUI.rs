@@ -1,13 +1,7 @@
-// gui.rs
-
-// This module contains all the application logic.
-// The `run` function is the only public part needed by `main.rs`.
-
-// The rotary_knob module is private to the gui module.
 mod rotary_knob {
   use eframe::egui::{
-    self, Align2, Color32, Label, Rect, Response, RichText, Sense, Stroke, TextStyle, Ui,
-    Vec2, Widget,
+    self, Align2, Color32, Label, Rect, Response, RichText, Sense, Stroke, TextStyle, Ui, Vec2,
+    Widget,
   };
 
   pub struct RotaryKnob<'a> {
@@ -61,13 +55,18 @@ mod rotary_knob {
       let desired_size = Vec2::splat(size);
       let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::drag());
       let center = rect.center();
+      // BUG FIX: The radius should be half the size, not double.
       let radius = size * 0.5;
 
+      // Handle circular drag input
       if response.dragged() {
         if let Some(pointer_pos) = ui.ctx().pointer_hover_pos() {
           let delta = pointer_pos - center;
+          // Use atan2 to get a continuous angle from the mouse position.
           let mut angle = delta.y.atan2(delta.x);
+          // Map angle from -π..π to 0..1
           let t = (angle / std::f32::consts::TAU) + 0.5;
+          // Map to value
           *value = (min + t * (max - min)).clamp(min, max);
           response.mark_changed();
         }
@@ -76,13 +75,17 @@ mod rotary_knob {
       let painter = ui.painter();
       let visuals = ui.style().interact(&response);
 
+      // Draw knob circle
       painter.circle(center, radius - 2.0, visuals.bg_fill, visuals.fg_stroke);
 
+      // Draw pointer
       let normalized_value = (*value - min) / (max - min);
+      // Map the value (0..1) to an angle for drawing.
       let angle = (normalized_value * std::f32::consts::TAU) - std::f32::consts::PI;
       let pointer = Vec2::angled(angle) * radius * 0.7;
       painter.line_segment([center, center + pointer], visuals.fg_stroke);
 
+      // Draw value text inside the knob
       if show_value {
         let val_str = format!("{:.2}", *value);
         let font = TextStyle::Small.resolve(ui.style());
@@ -95,6 +98,7 @@ mod rotary_knob {
         );
       }
 
+      // Draw label below knob using a proper egui Label widget
       if let Some(label) = label {
         let label_pos = center + Vec2::Y * (radius + 5.0);
         let label_rect = Rect::from_center_size(label_pos, Vec2::new(size, 10.0));
@@ -116,7 +120,6 @@ use std::io::{stdin, stdout, Write};
 use egui::{Button, Color32, RichText, Vec2};
 use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
 
-// The app struct is private to this module.
 struct MyApp {
   knob1: f32,
   knob2: f32,
@@ -138,6 +141,7 @@ impl Default for MyApp {
 }
 
 impl MyApp {
+  // Sets up the MIDI output connection with user selection.
   fn setup_midi(&mut self) {
     let midi_out = match MidiOutput::new("egui-midi-synth") {
       Ok(m) => m,
@@ -200,7 +204,6 @@ impl MyApp {
   }
 }
 
-// This function must be public so it can be called from main.rs.
 pub fn run() -> Result<(), eframe::Error> {
   let mut app = MyApp::default();
   app.setup_midi();
