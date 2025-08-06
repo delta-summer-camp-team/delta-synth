@@ -1,5 +1,5 @@
 use eframe::egui::{
-  Label, RichText, Response, Sense, Stroke, TextStyle, Ui, Vec2, Widget, Rect,
+  Label, Rect, RichText, Response, Sense, Stroke, TextStyle, Ui, Vec2, Widget,
 };
 
 pub struct RotaryKnob<'a> {
@@ -16,7 +16,7 @@ impl<'a> RotaryKnob<'a> {
       value,
       min,
       max,
-      size: 40.0,
+      size: 200.0,
       label: None,
     }
   }
@@ -26,10 +26,10 @@ impl<'a> RotaryKnob<'a> {
     self
   }
 
-  pub fn with_size(mut self, size: f32) -> Self {
-    self.size = size;
-    self
-  }
+  //pub fn with_size(mut self, size: f32) -> Self {
+  //  self.size = size;
+  //  self
+  //}
 }
 
 impl<'a> Widget for RotaryKnob<'a> {
@@ -45,27 +45,45 @@ impl<'a> Widget for RotaryKnob<'a> {
     let desired_size = Vec2::splat(size);
     let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::drag());
 
-    if response.dragged() {
-      let delta = response.drag_delta().y - response.drag_delta().x;
-      let sensitivity = (max - min) / 100.0;
-      *value = (*value - delta * sensitivity).clamp(min, max);
-      response.mark_changed();
-    }
-
-    let painter = ui.painter();
     let center = rect.center();
     let radius = size * 0.5;
 
+    // Handle circular drag input
+    if response.dragged() {
+      if let Some(pointer_pos) = ui.ctx().pointer_hover_pos() {
+        let delta = pointer_pos - center;
+        let mut angle = delta.angle(); // from -π to π
+
+        // Convert to 0.=2π range
+        if angle < 0.0 {
+          angle += std::f32::consts::TAU;
+        }
+
+        // Normalize angle to 0.0..=1.0
+        let t = angle / std::f32::consts::TAU;
+
+        // Map to value
+        *value = min + t * (max - min);
+        response.mark_changed();
+      }
+    }
+
+    let painter = ui.painter();
+
+    // Draw knob background
     painter.circle_filled(center, radius - 2.0, ui.visuals().widgets.inactive.bg_fill);
 
-    let angle = ((*value - min) / (max - min)) * std::f32::consts::TAU * 0.75
-      - std::f32::consts::PI * 0.625;
+    // Draw pointer
+    let normalized_value = (*value - min) / (max - min);
+    let angle = normalized_value * std::f32::consts::TAU;
     let pointer = Vec2::angled(angle) * radius * 0.6;
+
     painter.line_segment(
       [center, center + pointer],
       Stroke::new(2.0, ui.visuals().widgets.inactive.fg_stroke.color),
     );
 
+    // Draw label below
     if let Some(label) = label {
       let label_pos = center + Vec2::Y * (size * 0.65);
       let label_rect = Rect::from_center_size(label_pos, Vec2::new(size, 14.0));
