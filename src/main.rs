@@ -1,54 +1,59 @@
+
 use slint::slint;
 
-
 slint::slint! {
-    import { HorizontalBox, VerticalBox, Slider, Button } from "std-widgets.slint";
+    import { VerticalBox, HorizontalBox, Button } from "std-widgets.slint";
 
-    export component AppWindow inherits Window {
-        width: 1280px;
-        height: 720px;
-        title: "Minimal Slint App";
+    export component App inherits Window {
+        callback button_clicked(index: int, pressed: bool, value: float);
 
         VerticalBox {
-            spacing: 20px;
+            spacing: 10px;
 
-            HorizontalBox {
-                spacing: 10px;
-
-                label := Text {
-                    text: "Button not clicked";
-                    font-size: 20px;
+            // Кнопка 0
+            Button {
+                text: "Button 0";
+                clicked => {
+                    root.button_clicked(0, true, 0.5);
                 }
-
-                Button {
-                    text: "First";
-                    clicked => {
-                        label.text = "Button clicked";
-                    }
-                }
-
-                Button { text: "Second";          
-            
-                        }
-                Button { text: "Third"; }
-                 Slider {
-                  orientation:vertical;
-                value: 42;
-            }
             }
 
-            HorizontalBox {
-                spacing: 10px;
+            // Кнопка 1
+            Button {
+                text: "Button 1";
+                clicked => {
+                    root.button_clicked(1, true, 1.0);
+                }
+            }
 
-                Button { text: "Right 1"; }
-                Button { text: "Right 2"; }
+            // Кнопка 2
+            Button {
+                text: "Button 2";
+                clicked => {
+                    root.button_clicked(2, true, 2.0);
+                }
             }
         }
     }
 }
-
 fn main() -> Result<(), slint::PlatformError> {
-    let app = AppWindow::new()?;
-    app.run();
-    Ok(())
+    let app = App::new()?;
+    let weak = app.as_weak();
+
+    app.on_button_clicked(move |index, pressed, value| {
+        println!(
+            "Button {} clicked: pressed = {}, value = {}",
+            index, pressed, value
+        );
+
+
+
+
+        // Или обновить состояние (пример — установить значение снаружи)
+        if let Some(app) = weak.upgrade() {
+            // можно app.set_some_property(...) здесь
+        }
+    });
+
+    app.run()
 }
