@@ -1,3 +1,5 @@
+// main.rs
+
 mod rotary_knob {
   use eframe::egui::{
     self, Align2, Color32, Label, Rect, Response, RichText, Sense, Stroke, TextStyle, Ui, Vec2,
@@ -55,18 +57,14 @@ mod rotary_knob {
       let desired_size = Vec2::splat(size);
       let (rect, mut response) = ui.allocate_exact_size(desired_size, Sense::drag());
       let center = rect.center();
-      // BUG FIX: The radius should be half the size, not double.
       let radius = size * 0.5;
 
       // Handle circular drag input
       if response.dragged() {
         if let Some(pointer_pos) = ui.ctx().pointer_hover_pos() {
           let delta = pointer_pos - center;
-          // Use atan2 to get a continuous angle from the mouse position.
           let mut angle = delta.y.atan2(delta.x);
-          // Map angle from -π..π to 0..1
           let t = (angle / std::f32::consts::TAU) + 0.5;
-          // Map to value
           *value = (min + t * (max - min)).clamp(min, max);
           response.mark_changed();
         }
@@ -80,7 +78,6 @@ mod rotary_knob {
 
       // Draw pointer
       let normalized_value = (*value - min) / (max - min);
-      // Map the value (0..1) to an angle for drawing.
       let angle = (normalized_value * std::f32::consts::TAU) - std::f32::consts::PI;
       let pointer = Vec2::angled(angle) * radius * 0.7;
       painter.line_segment([center, center + pointer], visuals.fg_stroke);
@@ -98,7 +95,7 @@ mod rotary_knob {
         );
       }
 
-      // Draw label below knob using a proper egui Label widget
+      // Draw label below knob
       if let Some(label) = label {
         let label_pos = center + Vec2::Y * (radius + 5.0);
         let label_rect = Rect::from_center_size(label_pos, Vec2::new(size, 10.0));
@@ -209,7 +206,7 @@ pub fn run() -> Result<(), eframe::Error> {
   app.setup_midi();
 
   let options = eframe::NativeOptions {
-    viewport: egui::ViewportBuilder::default().with_inner_size([600.0, 400.0]),
+    viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]), // Increased window size
     ..Default::default()
   };
   eframe::run_native(
@@ -218,6 +215,21 @@ pub fn run() -> Result<(), eframe::Error> {
     Box::new(|_cc| Box::new(app)),
   )
 }
+
+/// A helper function to create the styled buttons consistently.
+fn styled_button(ui: &mut egui::Ui, text: &str) -> egui::Response {
+  ui.add(
+    Button::new(
+      RichText::new(text)
+        .heading()
+        .monospace()
+        .color(Color32::BLACK),
+    )
+      .min_size(Vec2::new(120.0, 40.0))
+      .fill(Color32::from_rgb(0xf3, 0xa3, 0x09)),
+  )
+}
+
 
 impl eframe::App for MyApp {
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
@@ -241,12 +253,13 @@ impl eframe::App for MyApp {
       ui.add_space(5.0);
 
       ui.horizontal(|ui| {
-        ui.add_space(ui.available_width() * 0.1);
+        ui.add_space(50.0);
+
         if ui
           .add(
-            RotaryKnob::new(&mut self.knob1, 0.0, 1.0)
+            RotaryKnob::new(&mut self.knob1, -1.0, 1.0)
               .with_label("CUTOFF")
-              .with_size(60.0)
+              .with_size(200.0)
               .show_value(true),
           )
           .changed()
@@ -255,73 +268,63 @@ impl eframe::App for MyApp {
         }
 
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |_| {});
-
+        ui.add_space(350.0);
         if ui
           .add(
-            RotaryKnob::new(&mut self.knob2, 0.0, 1.0)
+            RotaryKnob::new(&mut self.knob2, -1.0, 1.0)
               .with_label("RESONANCE")
-              .with_size(60.0)
+              .with_size(200.0)
               .show_value(true),
           )
           .changed()
         {
           cc_to_send.push((11, self.knob2));
         }
-        ui.add_space(ui.available_width() * 0.1);
+        ui.add_space(50.0);
       });
       ui.add_space(5.0);
     });
 
     egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
       ui.add_space(10.0);
+      // LAYOUT FIX: Use a 3-column layout to ensure correct, responsive centering.
       ui.columns(3, |columns| {
+        // Left buttons
         columns[0].vertical_centered(|ui| {
-          if ui.button("Button 1").clicked() {
+          if styled_button(ui, "BUTTON 1").clicked() {
             cc_to_send.push((20, 1.0));
           }
           ui.add_space(5.0);
-          if ui.button("Button 2").clicked() {
+          if styled_button(ui, "BUTTON 2").clicked() {
             cc_to_send.push((21, 1.0));
           }
         });
 
+        // Center sliders
         columns[1].horizontal_centered(|ui| {
+          ui.add_space(130.0);
           for (i, val) in self.slider_vals.iter_mut().enumerate() {
-            let slider = egui::Slider::new(val, 0.0..=1.0)
+            let slider = egui::Slider::new(val, -1.0..=1.0)
               .vertical()
               .text("");
-            if ui.add_sized([16.0, 100.0], slider).changed() {
+            // Doubled slider width and height for better usability
+            if ui.add_sized([100.0, 300.0], slider).changed() {
               cc_to_send.push((30 + i as u8, *val));
             }
           }
         });
 
+        // Right buttons
         columns[2].vertical_centered(|ui| {
-          if ui
-            .add(Button::new("Button 3").min_size(Vec2::new(120.0, 25.0)))
-            .clicked()
-          {
+          if styled_button(ui, "BUTTON 3").clicked() {
             cc_to_send.push((22, 1.0));
           }
           ui.add_space(5.0);
-          if ui
-            .add(
-              Button::new(
-                RichText::new("BUTTON 4")
-                  .heading()
-                  .monospace()
-                  .color(Color32::BLACK),
-              )
-                .min_size(Vec2::new(120.0, 40.0))
-                .fill(Color32::from_rgb(0xf3, 0xa3, 0x09)),
-            )
-            .clicked()
-          {
+          if styled_button(ui, "BUTTON 4").clicked() {
             cc_to_send.push((23, 1.0));
           }
         });
       });
-
       ui.add_space(10.0);
     });
 
