@@ -1,59 +1,47 @@
+mod rotary_knob;
 
-use slint::slint;
+use eframe::egui;
+use rotary_knob::RotaryKnob;
 
-slint::slint! {
-    import { VerticalBox, HorizontalBox, Button } from "std-widgets.slint";
-
-    export component App inherits Window {
-        callback button_clicked(index: int, pressed: bool, value: float);
-
-        VerticalBox {
-            spacing: 10px;
-
-            // Кнопка 0
-            Button {
-                text: "Button 0";
-                clicked => {
-                    root.button_clicked(0, true, 0.5);
-                }
-            }
-
-            // Кнопка 1
-            Button {
-                text: "Button 1";
-                clicked => {
-                    root.button_clicked(1, true, 1.0);
-                }
-            }
-
-            // Кнопка 2
-            Button {
-                text: "Button 2";
-                clicked => {
-                    root.button_clicked(2, true, 2.0);
-                }
-            }
-        }
-    }
+fn main() -> Result<(), eframe::Error> {
+  let options = eframe::NativeOptions::default();
+  eframe::run_native(
+    "Rotary Knob App",
+    options,
+    Box::new(|_cc| Box::new(MyApp::default())),
+  )
 }
-fn main() -> Result<(), slint::PlatformError> {
-    let app = App::new()?;
-    let weak = app.as_weak();
 
-    app.on_button_clicked(move |index, pressed, value| {
-        println!(
-            "Button {} clicked: pressed = {}, value = {}",
-            index, pressed, value
-        );
+#[derive(Default)]
+struct MyApp {
+  knob1: f32,
+  knob2: f32,
+}
+
+impl eframe::App for MyApp {
+  fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    egui::CentralPanel::default().show(ctx, |ui| {
+      ui.heading("Rotary Knobs and Buttons");
+
+      ui.horizontal(|ui| {
+        ui.add(RotaryKnob::new(&mut self.knob1, 0.0, 1.0).with_label("Knob 1"));
+        ui.add(RotaryKnob::new(&mut self.knob2, 0.0, 1.0).with_label("Knob 2"));
+      });
 
 
+      ui.separator();
 
+      if ui.button("Button 1").clicked() {
+        println!("Button 1 clicked");
+      }
 
-        // Или обновить состояние (пример — установить значение снаружи)
-        if let Some(app) = weak.upgrade() {
-            // можно app.set_some_property(...) здесь
-        }
+      if ui.button("Button 2").clicked() {
+        println!("Button 2 clicked");
+      }
+
+      ui.separator();
+      ui.label(format!("Knob 1 Value: {:.2}", self.knob1));
+      ui.label(format!("Knob 2 Value: {:.2}", self.knob2));
     });
-
-    app.run()
+  }
 }

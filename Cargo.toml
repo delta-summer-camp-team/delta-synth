@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-slint = "1.6"
+egui = "0.24.0"
+egui_knob = "0.3.0"
+eframe = "0.27"
