@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-slint = { version = "1.5", features = ["std"] }
+slint = "1.6"
