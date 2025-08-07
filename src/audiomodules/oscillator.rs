@@ -5,6 +5,7 @@ pub enum Waveforma {
   Sine,
   Quadrat,
   Saw,
+  Triugolnik,
 }
 
 
@@ -49,7 +50,8 @@ impl AudioModule for Oscillator {
                 }else{
                  -1.0
                 }
-                Waveforma::Saw => self.phase % 1.0 * 2.0 - self.amplituda
+                Waveforma::Saw => 2.0 * self.phase - 1.0,
+                Waveforma::Triugolnik => 4.0 * (self.phase - 0.5).abs() - 1.0
                 };
             *sample = v * self.amplituda;
             }
