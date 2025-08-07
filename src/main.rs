@@ -1,7 +1,6 @@
-mod audio_modules;
 mod audiomodules;
 
-use audio_modules::AudioModule;
+use audiomodules::AudioModule;
 use audiomodules::oscillator::Oscillator;
 use std::sync::{Arc, Mutex, atomic::{Ordering},};
 use crate::audiomodules::oscillator::Waveforma;
