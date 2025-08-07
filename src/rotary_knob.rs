@@ -11,33 +11,6 @@ pub struct RotaryKnob<'a> {
   show_value: bool,
 }
 
-impl<'a> RotaryKnob<'a> {
-  pub fn new(value: &'a mut f32, min: f32, max: f32) -> Self {
-    Self {
-      value,
-      min,
-      max,
-      size: 100.0,
-      label: None,
-      show_value: true,
-    }
-  }
-
-  pub fn with_label(mut self, label: &'a str) -> Self {
-    self.label = Some(label);
-    self
-  }
-
-  pub fn with_size(mut self, size: f32) -> Self {
-    self.size = size;
-    self
-  }
-
-  pub fn show_value(mut self, show: bool) -> Self {
-    self.show_value = show;
-    self
-  }
-}
 
 impl<'a> Widget for RotaryKnob<'a> {
   fn ui(self, ui: &mut Ui) -> Response {

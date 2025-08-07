@@ -2,7 +2,7 @@
 
 mod rotary_knob {
   use eframe::egui::{
-    self, Align2, Color32, Label, Rect, Response, RichText, Sense, Stroke, TextStyle, Ui, Vec2,
+    Label, Rect, Response, RichText, Sense, TextStyle, Ui, Vec2,
     Widget,
   };
 
@@ -63,7 +63,7 @@ mod rotary_knob {
       if response.dragged() {
         if let Some(pointer_pos) = ui.ctx().pointer_hover_pos() {
           let delta = pointer_pos - center;
-          let mut angle = delta.y.atan2(delta.x);
+          let angle = delta.y.atan2(delta.x);
           let t = (angle / std::f32::consts::TAU) + 0.5;
           *value = (min + t * (max - min)).clamp(min, max);
           response.mark_changed();
@@ -115,7 +115,7 @@ use rotary_knob::RotaryKnob;
 use std::io::{stdin, stdout, Write};
 
 use egui::{Button, Color32, RichText, Vec2};
-use midir::{MidiOutput, MidiOutputConnection, MidiOutputPort};
+use midir::{MidiOutput, MidiOutputConnection};
 
 struct MyApp {
   knob1: f32,
@@ -225,7 +225,8 @@ fn styled_button(ui: &mut egui::Ui, text: &str) -> egui::Response {
         .monospace()
         .color(Color32::BLACK),
     )
-      .min_size(Vec2::new(120.0, 40.0))
+      .min_size(Vec2::new(240.0, 80.0))
+      .rounding(egui::Rounding::same(20.0))
       .fill(Color32::from_rgb(0xf3, 0xa3, 0x09)),
   )
 }
@@ -237,7 +238,6 @@ impl eframe::App for MyApp {
 
     ctx.set_visuals(egui::Visuals::dark());
 
-    // LAYOUT FIX: Set a maximum height for the top panel to prevent overlap.
     egui::TopBottomPanel::top("top_panel")
       .max_height(ctx.screen_rect().height() / 2.0)
       .show(ctx, |ui| {
@@ -253,7 +253,7 @@ impl eframe::App for MyApp {
           ui.label(&self.midi_status);
           ui.add_space(5.0);
         });
-
+        ui.add_space(50.0);
         ui.columns(3, |columns| {
           columns[0].with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui
@@ -285,7 +285,6 @@ impl eframe::App for MyApp {
         });
       });
 
-    // LAYOUT FIX: Revert to using a bottom panel for the lower controls.
     egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
       ui.add_space(10.0);
       ui.columns(3, |columns| {
@@ -302,12 +301,14 @@ impl eframe::App for MyApp {
 
         // Center sliders
         columns[1].horizontal_centered(|ui| {
+          ui.add_space (75.0);
           for (i, val) in self.slider_vals.iter_mut().enumerate() {
-            let slider = egui::Slider::new(val, 0.0..=1.0)
+            let slider = egui::Slider::new(val, -1.0..=1.0)
               .vertical()
               .text("");
-            if ui.add_sized([48.0, 300.0], slider).changed() {
-              cc_to_send.push((30 + i as u8, *val));
+            // Increased slider size
+            if ui.add_sized([192.0, 600.0], slider).changed() {
+              cc_to_send.push((1 + i as u8, *val));
             }
           }
         });
@@ -326,7 +327,6 @@ impl eframe::App for MyApp {
       ui.add_space(10.0);
     });
 
-    // The CentralPanel now just fills the space between the top and bottom panels.
     egui::CentralPanel::default().show(ctx, |_ui| {});
 
     for (controller, value) in cc_to_send {
