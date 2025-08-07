@@ -273,7 +273,7 @@ impl eframe::App for MyApp {
             // Create an Image widget from the texture
             let img = egui::Image::new(texture);
             // Set a specific size for the image
-            let sized_img = img.fit_to_exact_size(egui::Vec2::new(1000.0, 200.0));
+            let sized_img = img.fit_to_exact_size(Vec2::new(1000.0, 200.0));
             ui.add(sized_img);
           }
           ui.label(&self.midi_status);
