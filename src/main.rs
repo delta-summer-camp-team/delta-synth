@@ -1,7 +1,7 @@
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{Device, SupportedStreamConfig};
 use std::sync::{
-  atomic::{AtomicBool, AtomicU8, Ordering},
+  atomic::{Ordering},
   Arc,
 };
 
@@ -59,9 +59,9 @@ pub fn init_synth_core() -> Result<(Arc<SynthState>, MidiInputConnection<()>)> {
   Ok((synth_state, conn_in))
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
   let _ = init_audio_device();
-  let (synth_state, _midi_conn) = init_synth_core()?;
+  let (_synth_state, _midi_conn) = init_synth_core()?;
   println!("SynthState готов");
 
   loop {
