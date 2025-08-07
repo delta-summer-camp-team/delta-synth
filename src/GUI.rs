@@ -206,7 +206,7 @@ pub fn run() -> Result<(), eframe::Error> {
   app.setup_midi();
 
   let options = eframe::NativeOptions {
-    viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]), // Increased window size
+    viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]),
     ..Default::default()
   };
   eframe::run_native(
@@ -237,57 +237,57 @@ impl eframe::App for MyApp {
 
     ctx.set_visuals(egui::Visuals::dark());
 
-    egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-      ui.add_space(5.0);
-      ui.vertical_centered(|ui| {
-        ui.label(
-          RichText::new("RUST SYNTHESIZER")
-            .monospace()
-            .heading()
-            .size(28.0)
-            .color(Color32::from_rgb(255, 204, 0)),
-        );
-        ui.label(&self.midi_status);
+    // LAYOUT FIX: Set a maximum height for the top panel to prevent overlap.
+    egui::TopBottomPanel::top("top_panel")
+      .max_height(ctx.screen_rect().height() / 2.0)
+      .show(ctx, |ui| {
+        ui.vertical_centered(|ui| {
+          ui.add_space(5.0);
+          ui.label(
+            RichText::new("RUST SYNTHESIZER")
+              .monospace()
+              .heading()
+              .size(28.0)
+              .color(Color32::from_rgb(255, 204, 0)),
+          );
+          ui.label(&self.midi_status);
+          ui.add_space(5.0);
+        });
+
+        ui.columns(3, |columns| {
+          columns[0].with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui
+              .add(
+                RotaryKnob::new(&mut self.knob1, 0.0, 1.0)
+                  .with_label("CUTOFF")
+                  .with_size(200.0)
+                  .show_value(true),
+              )
+              .changed()
+            {
+              cc_to_send.push((10, self.knob1));
+            }
+          });
+
+          columns[2].with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            if ui
+              .add(
+                RotaryKnob::new(&mut self.knob2, 0.0, 1.0)
+                  .with_label("RESONANCE")
+                  .with_size(200.0)
+                  .show_value(true),
+              )
+              .changed()
+            {
+              cc_to_send.push((11, self.knob2));
+            }
+          });
+        });
       });
 
-      ui.add_space(5.0);
-
-      ui.horizontal(|ui| {
-        ui.add_space(50.0);
-
-        if ui
-          .add(
-            RotaryKnob::new(&mut self.knob1, -1.0, 1.0)
-              .with_label("CUTOFF")
-              .with_size(200.0)
-              .show_value(true),
-          )
-          .changed()
-        {
-          cc_to_send.push((10, self.knob1));
-        }
-
-        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |_| {});
-        ui.add_space(350.0);
-        if ui
-          .add(
-            RotaryKnob::new(&mut self.knob2, -1.0, 1.0)
-              .with_label("RESONANCE")
-              .with_size(200.0)
-              .show_value(true),
-          )
-          .changed()
-        {
-          cc_to_send.push((11, self.knob2));
-        }
-        ui.add_space(50.0);
-      });
-      ui.add_space(5.0);
-    });
-
+    // LAYOUT FIX: Revert to using a bottom panel for the lower controls.
     egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
       ui.add_space(10.0);
-      // LAYOUT FIX: Use a 3-column layout to ensure correct, responsive centering.
       ui.columns(3, |columns| {
         // Left buttons
         columns[0].vertical_centered(|ui| {
@@ -302,13 +302,11 @@ impl eframe::App for MyApp {
 
         // Center sliders
         columns[1].horizontal_centered(|ui| {
-          ui.add_space(130.0);
           for (i, val) in self.slider_vals.iter_mut().enumerate() {
-            let slider = egui::Slider::new(val, -1.0..=1.0)
+            let slider = egui::Slider::new(val, 0.0..=1.0)
               .vertical()
               .text("");
-            // Doubled slider width and height for better usability
-            if ui.add_sized([100.0, 300.0], slider).changed() {
+            if ui.add_sized([48.0, 300.0], slider).changed() {
               cc_to_send.push((30 + i as u8, *val));
             }
           }
@@ -328,9 +326,8 @@ impl eframe::App for MyApp {
       ui.add_space(10.0);
     });
 
-    egui::CentralPanel::default().show(ctx, |ui| {
-      ui.separator();
-    });
+    // The CentralPanel now just fills the space between the top and bottom panels.
+    egui::CentralPanel::default().show(ctx, |_ui| {});
 
     for (controller, value) in cc_to_send {
       self.send_cc(controller, value);
