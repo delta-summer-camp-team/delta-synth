@@ -13,16 +13,19 @@ fn main() {
 
 }
 
+
 fn build_audio_modules() -> Vec<Arc<Mutex<dyn AudioModule>>> {
   let osc = Oscillator::new(440.0, 44100.0, Waveforma::Quadrat, 0.5);
   let osc1 = Oscillator::new(440.0, 44100.0, Waveforma::Sine, 0.5);
   let osc2 = Oscillator::new(440.0, 44100.0, Waveforma::Saw, 0.5);
+  let osc3 = Oscillator::new(440.0, 44100.0, Waveforma::Triugolnik, 0.5);
 
 
     vec![
         Arc::new(Mutex::new(osc)), // Квадрат
         Arc::new(Mutex::new(osc1)), // син
-        Arc::new(Mutex::new(osc2)), // пила
+        Arc::new(Mutex::new(osc2)),// пила
+        Arc::new(Mutex::new(osc3)),// Триугольник
 
 
     ]
