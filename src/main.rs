@@ -1,15 +1,15 @@
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{Device, SupportedStreamConfig};
 use std::sync::{
-  Arc,
   atomic::{AtomicBool, AtomicU8, Ordering},
+  Arc,
 };
 
 use anyhow::Result;
 use midir::{MidiInput, MidiInputConnection};
 
-mod synth_state;                           // подключаем модуль
-use crate::synth_state::SynthState;        // импортируем структуру
+mod synth_state; // подключаем модуль
+use crate::synth_state::SynthState; // импортируем структуру
 
 /// Инициализация аудиоустройства и конфигурации
 fn init_audio_device() -> Option<(Device, SupportedStreamConfig)> {
@@ -41,10 +41,14 @@ pub fn init_synth_core() -> Result<(Arc<SynthState>, MidiInputConnection<()>)> {
         if status & 0xF0 == 0x90 && message.len() >= 2 {
           let key = message[1];
           synth_state_clone.last_key.store(key, Ordering::Relaxed);
-          synth_state_clone.has_key_pressed.store(true, Ordering::Relaxed);
+          synth_state_clone
+            .has_key_pressed
+            .store(true, Ordering::Relaxed);
           println!("Нажата клавиша: {}", key);
         } else if status & 0xF0 == 0x80 && message.len() >= 2 {
-          synth_state_clone.has_key_pressed.store(false, Ordering::Relaxed);
+          synth_state_clone
+            .has_key_pressed
+            .store(false, Ordering::Relaxed);
           println!("Клавиша отпущена");
         }
       }
