@@ -1,4 +1,4 @@
-use crate::audio_modules::AudioModule;
+use crate::audiomodules::AudioModule;
 use std::f32::consts::PI;
 
 pub enum Waveforma {
