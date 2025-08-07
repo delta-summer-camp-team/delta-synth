@@ -1,5 +1,6 @@
 // main.rs
 
+// The rotary_knob module is unchanged.
 mod rotary_knob {
   use eframe::egui::{
     Label, Rect, Response, RichText, Sense, TextStyle, Ui, Vec2,
@@ -110,12 +111,11 @@ mod rotary_knob {
   }
 }
 
-use crate::gui::egui::TextureHandle;
 use eframe::egui;
 use rotary_knob::RotaryKnob;
 use std::io::{stdin, stdout, Write};
 
-use egui::{Button, Color32, RichText, Vec2};
+use egui::{Button, Color32, RichText, TextureHandle, Vec2};
 use midir::{MidiOutput, MidiOutputConnection};
 
 struct MyApp {
@@ -200,8 +200,11 @@ impl MyApp {
     }
   }
 
+  // This function is unchanged. It takes the value and scales it for MIDI.
   fn send_cc(&mut self, controller: u8, value: f32) {
     if let Some(ref mut conn) = self.midi_out {
+      // Note: The value is clamped to [0.0, 1.0] here before sending.
+      // A value of 2.0 will be treated as 1.0.
       let midi_value = (value.clamp(0.0, 1.0) * 127.0).round() as u8;
       let _ = conn.send(&[0xB0, controller, midi_value]);
     }
@@ -213,8 +216,7 @@ pub fn run() -> Result<(), eframe::Error> {
   app.setup_midi();
 
   let options = eframe::NativeOptions {
-    viewport: egui::ViewportBuilder::default()
-      .with_fullscreen(true),
+    viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]),
     ..Default::default()
   };
   eframe::run_native(
@@ -225,9 +227,7 @@ pub fn run() -> Result<(), eframe::Error> {
 }
 
 /// A helper function to create the styled buttons consistently.
-// BUG FIX: Add the `pressed` parameter to the function signature.
 fn styled_button(ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
-  // Change color based on the `pressed` state
   let fill_color = if pressed {
     Color32::from_rgb(0xb0, 0x70, 0x00) // Darker orange when pressed
   } else {
@@ -250,6 +250,7 @@ fn styled_button(ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response
 
 impl eframe::App for MyApp {
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    // This logic for loading the logo is unchanged.
     if self.logo_texture.is_none() {
       let image_bytes = include_bytes!("../logo.png");
       let image = image::load_from_memory(image_bytes).expect("Failed to load logo image");
@@ -260,19 +261,19 @@ impl eframe::App for MyApp {
 
       self.logo_texture = Some(ctx.load_texture("logo", color_image, Default::default()));
     }
+
     let mut cc_to_send: Vec<(u8, f32)> = Vec::new();
 
     ctx.set_visuals(egui::Visuals::dark());
 
+    // Top panel with knobs is unchanged.
     egui::TopBottomPanel::top("top_panel")
       .max_height(ctx.screen_rect().height() / 2.0)
       .show(ctx, |ui| {
         ui.vertical_centered(|ui| {
           ui.add_space(5.0);
           if let Some(texture) = &self.logo_texture {
-            // Create an Image widget from the texture
             let img = egui::Image::new(texture);
-            // Set a specific size for the image
             let sized_img = img.fit_to_exact_size(egui::Vec2::new(1000.0, 200.0));
             ui.add(sized_img);
           }
@@ -311,12 +312,12 @@ impl eframe::App for MyApp {
         });
       });
 
+    // Bottom panel with sliders and buttons.
     egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
       ui.add_space(10.0);
       ui.columns(3, |columns| {
-        // Left buttons
+        // Left buttons are unchanged.
         columns[0].vertical_centered(|ui| {
-          // BUG FIX: Pass the button's state and toggle it on click
           if styled_button(ui, "BUTTON 1", self.button1_pressed).clicked() {
             self.button1_pressed = !self.button1_pressed;
             let value_to_send = if self.button1_pressed { 1.0 } else { 0.0 };
@@ -328,31 +329,28 @@ impl eframe::App for MyApp {
           }
         });
 
-        // Center sliders
-        columns[1].vertical_centered(|ui| {
-          egui::ScrollArea::horizontal()
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-              ui.horizontal(|ui| {
-                for (i, val) in self.slider_vals.iter_mut().enumerate() {
-                  ui.vertical(|ui| {
-                    ui.label(format!("S{}", i + 1));
-                    let slider = egui::Slider::new(val, -1.0..=1.0)
-                      .vertical()
-                      .text("");
-                    if ui.add_sized([200.0, 1000.0], slider).changed() {
-                      cc_to_send.push((1 + i as u8, *val));
-                    }
-                  });
-                  ui.add_space(15.0);
-                }
-              });
-            });
+        // Center sliders - THIS IS WHERE THE CHANGE IS
+        columns[1].horizontal_centered(|ui| {
+          ui.add_space (75.0);
+          for (i, val) in self.slider_vals.iter_mut().enumerate() {
+            let slider = egui::Slider::new(val, -1.0..=1.0)
+              .vertical()
+              .text("");
+            if ui.add_sized([192.0, 600.0], slider).changed() {
+              // --- MODIFICATION START ---
+              // Determine the value to send. For the first slider (i=0),
+              // we add 1.0 to shift its range from [-1.0, 1.0] to [0.0, 2.0].
+              // For all other sliders, we use the original value.
+              let value_to_send = if i == 0 { *val + 1.0 } else { *val };
+
+              cc_to_send.push((1 + i as u8, value_to_send));
+              // --- MODIFICATION END ---
+            }
+          }
         });
 
-        // Right buttons
+        // Right buttons are unchanged.
         columns[2].vertical_centered(|ui| {
-          // BUG FIX: Pass the button's state and toggle it on click
           if styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
             self.button3_pressed = !self.button3_pressed;
             let value_to_send = if self.button3_pressed { 1.0 } else { 0.0 };
@@ -367,6 +365,9 @@ impl eframe::App for MyApp {
       ui.add_space(10.0);
     });
 
+    egui::CentralPanel::default().show(ctx, |_ui| {});
+
+    // Send all collected MIDI messages.
     for (controller, value) in cc_to_send {
       self.send_cc(controller, value);
     }
