@@ -5,6 +5,6 @@ edition = "2021"
 
 [dependencies]
 egui = "0.24.0"
-egui_knob = "0.3.0"
 eframe = "0.27"
 midir = "0.9"
+image = "0.24.9"

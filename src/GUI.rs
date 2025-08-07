@@ -110,6 +110,7 @@ mod rotary_knob {
   }
 }
 
+use crate::gui::egui::TextureHandle;
 use eframe::egui;
 use rotary_knob::RotaryKnob;
 use std::io::{stdin, stdout, Write};
@@ -123,6 +124,9 @@ struct MyApp {
   slider_vals: [f32; 4],
   midi_out: Option<MidiOutputConnection>,
   midi_status: String,
+  button1_pressed: bool,
+  button3_pressed: bool,
+  logo_texture: Option<TextureHandle>,
 }
 
 impl Default for MyApp {
@@ -133,6 +137,9 @@ impl Default for MyApp {
       slider_vals: [0.0; 4],
       midi_out: None,
       midi_status: "Initializing MIDI...".to_string(),
+      button1_pressed: false,
+      button3_pressed: false,
+      logo_texture: None,
     }
   }
 }
@@ -217,7 +224,15 @@ pub fn run() -> Result<(), eframe::Error> {
 }
 
 /// A helper function to create the styled buttons consistently.
-fn styled_button(ui: &mut egui::Ui, text: &str) -> egui::Response {
+// BUG FIX: Add the `pressed` parameter to the function signature.
+fn styled_button(ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
+  // Change color based on the `pressed` state
+  let fill_color = if pressed {
+    Color32::from_rgb(0xb0, 0x70, 0x00) // Darker orange when pressed
+  } else {
+    Color32::from_rgb(0xf3, 0xa3, 0x09) // Normal orange
+  };
+
   ui.add(
     Button::new(
       RichText::new(text)
@@ -227,13 +242,23 @@ fn styled_button(ui: &mut egui::Ui, text: &str) -> egui::Response {
     )
       .min_size(Vec2::new(240.0, 80.0))
       .rounding(egui::Rounding::same(20.0))
-      .fill(Color32::from_rgb(0xf3, 0xa3, 0x09)),
+      .fill(fill_color),
   )
 }
 
 
 impl eframe::App for MyApp {
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    if self.logo_texture.is_none() {
+      let image_bytes = include_bytes!("../logo.png");
+      let image = image::load_from_memory(image_bytes).expect("Failed to load logo image");
+      let size = [image.width() as _, image.height() as _];
+      let image_buffer = image.to_rgba8();
+      let pixels = image_buffer.as_flat_samples();
+      let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+
+      self.logo_texture = Some(ctx.load_texture("logo", color_image, Default::default()));
+    }
     let mut cc_to_send: Vec<(u8, f32)> = Vec::new();
 
     ctx.set_visuals(egui::Visuals::dark());
@@ -243,13 +268,13 @@ impl eframe::App for MyApp {
       .show(ctx, |ui| {
         ui.vertical_centered(|ui| {
           ui.add_space(5.0);
-          ui.label(
-            RichText::new("RUST SYNTHESIZER")
-              .monospace()
-              .heading()
-              .size(28.0)
-              .color(Color32::from_rgb(255, 204, 0)),
-          );
+          if let Some(texture) = &self.logo_texture {
+            // Create an Image widget from the texture
+            let img = egui::Image::new(texture);
+            // Set a specific size for the image
+            let sized_img = img.fit_to_exact_size(egui::Vec2::new(1000.0, 200.0));
+            ui.add(sized_img);
+          }
           ui.label(&self.midi_status);
           ui.add_space(5.0);
         });
@@ -290,11 +315,14 @@ impl eframe::App for MyApp {
       ui.columns(3, |columns| {
         // Left buttons
         columns[0].vertical_centered(|ui| {
-          if styled_button(ui, "BUTTON 1").clicked() {
-            cc_to_send.push((20, 1.0));
+          // BUG FIX: Pass the button's state and toggle it on click
+          if styled_button(ui, "BUTTON 1", self.button1_pressed).clicked() {
+            self.button1_pressed = !self.button1_pressed;
+            let value_to_send = if self.button1_pressed { 1.0 } else { 0.0 };
+            cc_to_send.push((20, value_to_send));
           }
           ui.add_space(5.0);
-          if styled_button(ui, "BUTTON 2").clicked() {
+          if styled_button(ui, "BUTTON 2", false).clicked() {
             cc_to_send.push((21, 1.0));
           }
         });
@@ -315,11 +343,14 @@ impl eframe::App for MyApp {
 
         // Right buttons
         columns[2].vertical_centered(|ui| {
-          if styled_button(ui, "BUTTON 3").clicked() {
-            cc_to_send.push((22, 1.0));
+          // BUG FIX: Pass the button's state and toggle it on click
+          if styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
+            self.button3_pressed = !self.button3_pressed;
+            let value_to_send = if self.button3_pressed { 1.0 } else { 0.0 };
+            cc_to_send.push((22, value_to_send));
           }
           ui.add_space(5.0);
-          if styled_button(ui, "BUTTON 4").clicked() {
+          if styled_button(ui, "BUTTON 4", false).clicked() {
             cc_to_send.push((23, 1.0));
           }
         });
