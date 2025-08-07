@@ -213,7 +213,8 @@ pub fn run() -> Result<(), eframe::Error> {
   app.setup_midi();
 
   let options = eframe::NativeOptions {
-    viewport: egui::ViewportBuilder::default().with_inner_size([800.0, 600.0]),
+    viewport: egui::ViewportBuilder::default()
+      .with_fullscreen(true),
     ..Default::default()
   };
   eframe::run_native(
@@ -328,17 +329,25 @@ impl eframe::App for MyApp {
         });
 
         // Center sliders
-        columns[1].horizontal_centered(|ui| {
-          ui.add_space (75.0);
-          for (i, val) in self.slider_vals.iter_mut().enumerate() {
-            let slider = egui::Slider::new(val, -1.0..=1.0)
-              .vertical()
-              .text("");
-            // Increased slider size
-            if ui.add_sized([192.0, 600.0], slider).changed() {
-              cc_to_send.push((1 + i as u8, *val));
-            }
-          }
+        columns[1].vertical_centered(|ui| {
+          egui::ScrollArea::horizontal()
+            .auto_shrink([false; 2])
+            .show(ui, |ui| {
+              ui.horizontal(|ui| {
+                for (i, val) in self.slider_vals.iter_mut().enumerate() {
+                  ui.vertical(|ui| {
+                    ui.label(format!("S{}", i + 1));
+                    let slider = egui::Slider::new(val, -1.0..=1.0)
+                      .vertical()
+                      .text("");
+                    if ui.add_sized([200.0, 1000.0], slider).changed() {
+                      cc_to_send.push((1 + i as u8, *val));
+                    }
+                  });
+                  ui.add_space(15.0);
+                }
+              });
+            });
         });
 
         // Right buttons
@@ -357,8 +366,6 @@ impl eframe::App for MyApp {
       });
       ui.add_space(10.0);
     });
-
-    egui::CentralPanel::default().show(ctx, |_ui| {});
 
     for (controller, value) in cc_to_send {
       self.send_cc(controller, value);
