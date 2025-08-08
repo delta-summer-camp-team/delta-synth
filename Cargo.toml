@@ -4,9 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-eframe = "0.21.3"
-egui = "0.21.0"
-rand = "0.8.5"
-image = { version = "0.24", default-features = false, features = ["jpeg"] }
-parking_lot = "0.12"
-
+egui = "0.24.0"
+eframe = "0.27"
+midir = "0.9"
+image = "0.24.9"
