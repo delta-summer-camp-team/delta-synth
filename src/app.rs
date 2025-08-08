@@ -3,33 +3,37 @@ use crate::gui_style::GUIStyle;
 use crate::keyboard::Keyboard;
 use eframe::egui;
 use eframe::egui::{
-  Button, Color32, Image, Label, Pos2, Rect, Response, RichText, Sense, Shape, TextStyle,
+  Button, Color32, Image, Label, Pos2, Rect, Response, RichText, Sense, Shape, Stroke, TextStyle,
   TextureHandle, Ui, Vec2, Widget,
 };
 use midir::{MidiInput, MidiOutput, MidiOutputConnection};
 use std::io::{stdin, stdout, Write};
 use std::sync::mpsc::{channel, Receiver, Sender};
+use crate::doom_mode::DoomState;
 
 // --- AppState Enum ---
 // Manages the current view of the application.
 #[derive(Clone, Copy, Debug, PartialEq)]
-enum AppState {
+pub enum AppState {
   StartScreen,
   MainApp,
   Diagnostics,
+  DoomMode,
 }
 
-mod rotary_knob {
+// --- Rotary Knob Widget ---
+// This is a custom widget for the circular knobs.
+pub mod rotary_knob {
   use super::*;
 
   pub struct RotaryKnob<'a> {
-    value: &'a mut f32,
-    min: f32,
-    max: f32,
-    size: f32,
-    label: Option<&'a str>,
-    show_value: bool,
-    texture: Option<&'a TextureHandle>,
+    pub value: &'a mut f32,
+    pub min: f32,
+    pub max: f32,
+    pub size: f32,
+    pub label: Option<&'a str>,
+    pub show_value: bool,
+    pub texture: Option<&'a TextureHandle>,
   }
 
   impl<'a> RotaryKnob<'a> {
@@ -97,7 +101,7 @@ mod rotary_knob {
       let visuals = ui.style().interact(&response);
 
       if let Some(tex) = texture {
-        // Create a circular clip mask
+        // If a texture is provided, draw it clipped to a circle
         let circle = Shape::circle_filled(center, radius, Color32::WHITE);
         let mut mesh = egui::Mesh::with_texture(tex.id());
         mesh.add_rect_with_uv(
@@ -105,21 +109,22 @@ mod rotary_knob {
           Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0)),
           Color32::WHITE,
         );
-
-        let mut clip_shape = Shape::Vec(vec![circle, Shape::Mesh(mesh)]);
+        let clip_shape = Shape::Vec(vec![circle, Shape::Mesh(mesh)]);
         painter.add(clip_shape);
-
       } else {
+        // Otherwise, draw a simple circle
         painter.circle(center, radius - 2.0, visuals.bg_fill, visuals.fg_stroke);
       }
 
+      // Draw the pointer line
       let normalized_value = (*value - min) / (max - min);
       let angle = (normalized_value * std::f32::consts::TAU) - std::f32::consts::PI;
       let pointer = Vec2::angled(angle) * radius * 0.7;
       painter.line_segment([center, center + pointer], visuals.fg_stroke);
 
+      // Draw the numeric value inside the knob
       if show_value {
-        let val_str = format!("{:.2}", *value);
+        let val_str = format!("{:.0}", *value);
         let font = TextStyle::Small.resolve(ui.style());
         painter.text(
           center,
@@ -130,6 +135,7 @@ mod rotary_knob {
         );
       }
 
+      // Draw the label below the knob
       if let Some(label) = label {
         let label_pos = center + Vec2::Y * (radius + 5.0);
         let label_rect = Rect::from_center_size(label_pos, Vec2::new(size, 10.0));
@@ -138,32 +144,33 @@ mod rotary_knob {
           Label::new(RichText::new(label).text_style(TextStyle::Body)).wrap(false),
         );
       }
-
       response
     }
   }
 }
 
-
 use rotary_knob::RotaryKnob;
 
+// --- Main Application Struct ---
 pub struct MyApp {
-  knob1: f32,
-  knob2: f32,
-  slider_vals: [f32; 4],
-  midi_out: Option<MidiOutputConnection>,
-  midi_in: Option<midir::MidiInputConnection<()>>,
-  midi_status: String,
-  button1_pressed: bool,
-  button3_pressed: bool,
-  logo_texture: Option<TextureHandle>,
-  antonui_texture: Option<TextureHandle>,
-  current_style: GUIStyle,
-  app_state: AppState, // New state field
-  is_fullscreen: bool,
-  keyboard: Keyboard,
-  midi_rx: Receiver<Vec<u8>>,
-  midi_tx: Sender<Vec<u8>>,
+  pub knob1: f32,
+  pub knob2: f32,
+  pub slider_vals: [f32; 4],
+  pub midi_out: Option<MidiOutputConnection>,
+  pub midi_in: Option<midir::MidiInputConnection<()>>,
+  pub midi_status: String,
+  pub button1_pressed: bool,
+  pub button3_pressed: bool,
+  pub logo_texture: Option<TextureHandle>,
+  pub antonui_texture: Option<TextureHandle>,
+  pub current_style: GUIStyle,
+  pub app_state: AppState,
+  pub is_fullscreen: bool,
+  pub keyboard: Keyboard,
+  pub midi_rx: Receiver<Vec<u8>>,
+  pub midi_tx: Sender<Vec<u8>>,
+  // Doom mode specific state
+  pub doom_state: DoomState,
 }
 
 impl Default for MyApp {
@@ -180,17 +187,19 @@ impl Default for MyApp {
       button3_pressed: false,
       logo_texture: None,
       antonui_texture: None,
-      current_style: GUIStyle::DarkMode, // Default style
-      app_state: AppState::StartScreen,  // Start with the selection screen
+      current_style: GUIStyle::DarkMode,
+      app_state: AppState::StartScreen,
       is_fullscreen: true,
       keyboard: Keyboard::new(),
       midi_rx,
       midi_tx,
+      doom_state: DoomState::default(),
     }
   }
 }
 
 impl MyApp {
+  // --- MIDI Setup and Communication ---
   fn setup_midi(&mut self) {
     let midi_out = match MidiOutput::new("egui-midi-synth") {
       Ok(m) => m,
@@ -247,12 +256,12 @@ impl MyApp {
     }
   }
 
-  // --- UI drawing functions for different states ---
+  // --- UI Drawing Functions for Different States ---
 
   fn draw_start_screen(&mut self, ctx: &egui::Context) {
     egui::CentralPanel::default().show(ctx, |ui| {
       ui.vertical_centered(|ui| {
-        ui.add_space(ui.available_height() * 0.2);
+        ui.add_space(ui.available_height() * 0.1);
         if let Some(texture) = &self.logo_texture {
           let img = egui::Image::new(texture);
           let sized_img = img.fit_to_exact_size(Vec2::new(1000.0, 200.0));
@@ -262,38 +271,17 @@ impl MyApp {
         ui.heading("Choose a Style");
         ui.add_space(20.0);
 
-        if ui
-          .add(
-            Button::new("Orange Mode")
-              .min_size(Vec2::new(200.0, 50.0))
-              .rounding(10.0),
-          )
-          .clicked()
-        {
+        if ui.add(Button::new("Orange Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
           self.current_style = GUIStyle::OrangeMode;
           self.app_state = AppState::MainApp;
         }
         ui.add_space(10.0);
-        if ui
-          .add(
-            Button::new("Dark Mode")
-              .min_size(Vec2::new(200.0, 50.0))
-              .rounding(10.0),
-          )
-          .clicked()
-        {
+        if ui.add(Button::new("Dark Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
           self.current_style = GUIStyle::DarkMode;
           self.app_state = AppState::MainApp;
         }
         ui.add_space(10.0);
-        if ui
-          .add(
-            Button::new("Turquoise Mode")
-              .min_size(Vec2::new(200.0, 50.0))
-              .rounding(10.0),
-          )
-          .clicked()
-        {
+        if ui.add(Button::new("Turquoise Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
           self.current_style = GUIStyle::TurquoiseMode;
           self.app_state = AppState::MainApp;
         }
@@ -303,14 +291,12 @@ impl MyApp {
           self.app_state = AppState::MainApp;
         }
         ui.add_space(10.0);
-        if ui
-          .add(
-            Button::new("Diagnostics")
-              .min_size(Vec2::new(200.0, 50.0))
-              .rounding(10.0),
-          )
-          .clicked()
-        {
+        if ui.add(Button::new("Doom Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
+          self.current_style = GUIStyle::DoomMode;
+          self.app_state = AppState::DoomMode;
+        }
+        ui.add_space(10.0);
+        if ui.add(Button::new("Diagnostics").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
           self.app_state = AppState::Diagnostics;
         }
       });
@@ -319,19 +305,15 @@ impl MyApp {
 
   fn draw_main_app(&mut self, ctx: &egui::Context) {
     let mut cc_to_send: Vec<(u8, f32)> = Vec::new();
-
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
       ui.horizontal(|ui| {
         if ui.button("↩ Back").clicked() {
           self.app_state = AppState::StartScreen;
         }
-
         ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
           if ui.button("Toggle Fullscreen").clicked() {
             self.is_fullscreen = !self.is_fullscreen;
-            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(
-              self.is_fullscreen,
-            ));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
           }
           if let Some(texture) = &self.logo_texture {
             let img = egui::Image::new(texture);
@@ -357,7 +339,6 @@ impl MyApp {
             cc_to_send.push((10, self.knob1));
           }
         });
-
         columns[2].with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
           let mut knob = RotaryKnob::new(&mut self.knob2, 0.0, 1.0)
             .with_label("RESONANCE")
@@ -389,28 +370,22 @@ impl MyApp {
             cc_to_send.push((21, 1.0));
           }
         });
-
         columns[1].vertical_centered(|ui| {
-          egui::ScrollArea::horizontal()
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-              ui.horizontal(|ui| {
-                for (i, val) in self.slider_vals.iter_mut().enumerate() {
-                  ui.vertical(|ui| {
-                    ui.label(format!("S{}", i + 1));
-                    let slider = egui::Slider::new(val, -0.5..=0.5)
-                      .vertical()
-                      .text("");
-                    if ui.add_sized([200.0, 1000.0], slider).changed() {
-                      cc_to_send.push((1 + i as u8, *val + 0.5));
-                    }
-                  });
-                  ui.add_space(15.0);
-                }
-              });
+          egui::ScrollArea::horizontal().auto_shrink([false; 2]).show(ui, |ui| {
+            ui.horizontal(|ui| {
+              for (i, val) in self.slider_vals.iter_mut().enumerate() {
+                ui.vertical(|ui| {
+                  ui.label(format!("S{}", i + 1));
+                  let slider = egui::Slider::new(val, -0.5..=0.5).vertical().text("");
+                  if ui.add_sized([200.0, 1000.0], slider).changed() {
+                    cc_to_send.push((1 + i as u8, *val + 0.5));
+                  }
+                });
+                ui.add_space(15.0);
+              }
             });
+          });
         });
-
         columns[2].vertical_centered(|ui| {
           if self.styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
             self.button3_pressed = !self.button3_pressed;
@@ -433,7 +408,6 @@ impl MyApp {
 
   fn draw_diagnostics_screen(&mut self, ctx: &egui::Context) {
     let mut cc_to_send: Vec<(u8, f32)> = Vec::new();
-
     egui::TopBottomPanel::top("top_panel")
       .max_height(ctx.screen_rect().height() / 2.0)
       .show(ctx, |ui| {
@@ -444,42 +418,22 @@ impl MyApp {
           }
           if ui.button("Toggle Fullscreen").clicked() {
             self.is_fullscreen = !self.is_fullscreen;
-            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(
-              self.is_fullscreen,
-            ));
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
           }
           ui.add_space(10.0);
-
-          // Add the keyboard here
           self.keyboard.ui(ui);
-
           ui.label(&self.midi_status);
           ui.add_space(5.0);
         });
         ui.add_space(50.0);
         ui.columns(3, |columns| {
           columns[0].with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.add(
-              RotaryKnob::new(&mut self.knob1, 0.0, 1.0)
-                .with_label("CUTOFF")
-                .with_size(200.0)
-                .show_value(true),
-            )
-              .changed()
-            {
+            if ui.add(RotaryKnob::new(&mut self.knob1, 0.0, 1.0).with_label("CUTOFF").with_size(200.0).show_value(true)).changed() {
               cc_to_send.push((10, self.knob1));
             }
           });
-
           columns[2].with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-            if ui.add(
-              RotaryKnob::new(&mut self.knob2, 0.0, 1.0)
-                .with_label("RESONANCE")
-                .with_size(200.0)
-                .show_value(true),
-            )
-              .changed()
-            {
+            if ui.add(RotaryKnob::new(&mut self.knob2, 0.0, 1.0).with_label("RESONANCE").with_size(200.0).show_value(true)).changed() {
               cc_to_send.push((11, self.knob2));
             }
           });
@@ -500,28 +454,22 @@ impl MyApp {
             cc_to_send.push((21, 1.0));
           }
         });
-
         columns[1].vertical_centered(|ui| {
-          egui::ScrollArea::horizontal()
-            .auto_shrink([false; 2])
-            .show(ui, |ui| {
-              ui.horizontal(|ui| {
-                for (i, val) in self.slider_vals.iter_mut().enumerate() {
-                  ui.vertical(|ui| {
-                    ui.label(format!("S{}", i + 1));
-                    let slider = egui::Slider::new(val, -0.5..=0.5)
-                      .vertical()
-                      .text("");
-                    if ui.add_sized([200.0, 1000.0], slider).changed() {
-                      cc_to_send.push((1 + i as u8, *val + 0.5));
-                    }
-                  });
-                  ui.add_space(15.0);
-                }
-              });
+          egui::ScrollArea::horizontal().auto_shrink([false; 2]).show(ui, |ui| {
+            ui.horizontal(|ui| {
+              for (i, val) in self.slider_vals.iter_mut().enumerate() {
+                ui.vertical(|ui| {
+                  ui.label(format!("S{}", i + 1));
+                  let slider = egui::Slider::new(val, -0.5..=0.5).vertical().text("");
+                  if ui.add_sized([200.0, 1000.0], slider).changed() {
+                    cc_to_send.push((1 + i as u8, *val + 0.5));
+                  }
+                });
+                ui.add_space(15.0);
+              }
             });
+          });
         });
-
         columns[2].vertical_centered(|ui| {
           if self.styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
             self.button3_pressed = !self.button3_pressed;
@@ -542,27 +490,16 @@ impl MyApp {
     }
   }
 
-  fn styled_button(&self, ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
+  pub fn styled_button(&self, ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
     let visuals = self.current_style.get_visuals();
     let (fill_color, text_color) = if pressed {
-      (
-        visuals.widgets.active.bg_fill,
-        visuals.override_text_color.unwrap_or(Color32::BLACK),
-      )
+      (visuals.widgets.active.bg_fill, visuals.override_text_color.unwrap_or(Color32::BLACK))
     } else {
-      (
-        visuals.widgets.inactive.bg_fill,
-        visuals.override_text_color.unwrap_or(Color32::BLACK),
-      )
+      (visuals.widgets.inactive.bg_fill, visuals.override_text_color.unwrap_or(Color32::BLACK))
     };
 
     ui.add(
-      Button::new(
-        RichText::new(text)
-          .heading()
-          .monospace()
-          .color(text_color),
-      )
+      Button::new(RichText::new(text).heading().monospace().color(text_color))
         .min_size(Vec2::new(240.0, 80.0))
         .rounding(egui::Rounding::same(20.0))
         .fill(fill_color),
@@ -570,23 +507,22 @@ impl MyApp {
   }
 }
 
+// --- eframe App Implementation ---
 impl eframe::App for MyApp {
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     // Handle incoming MIDI messages
     for msg in self.midi_rx.try_iter() {
       if let [status, key, _] = msg.as_slice() {
-        // Key on
         if (status & 0xF0) == 0x90 {
           self.keyboard.add_key(*key);
         }
-        // Key off
         if (status & 0xF0) == 0x80 {
           self.keyboard.remove_key(*key);
         }
       }
     }
 
-    // Load logo texture once
+    // Load logo and antonui textures once
     if self.logo_texture.is_none() {
       let image_bytes = include_bytes!("../logo.png");
       let image = image::load_from_memory(image_bytes).expect("Failed to load logo image");
@@ -594,11 +530,9 @@ impl eframe::App for MyApp {
       let image_buffer = image.to_rgba8();
       let pixels = image_buffer.as_flat_samples();
       let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-
       self.logo_texture = Some(ctx.load_texture("logo", color_image, Default::default()));
     }
 
-    // Load antonui texture once
     if self.antonui_texture.is_none() {
       let image_bytes = include_bytes!("../antonui.jpg");
       let image = image::load_from_memory(image_bytes).expect("Failed to load antonui image");
@@ -606,12 +540,10 @@ impl eframe::App for MyApp {
       let image_buffer = image.to_rgba8();
       let pixels = image_buffer.as_flat_samples();
       let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-
       self.antonui_texture = Some(ctx.load_texture("antonui", color_image, Default::default()));
     }
 
-
-    // Set the visuals for the entire application based on the current style
+    // Set the visuals for the entire application
     ctx.set_visuals(self.current_style.get_visuals());
 
     // Render UI based on the current application state
@@ -619,24 +551,21 @@ impl eframe::App for MyApp {
       AppState::StartScreen => self.draw_start_screen(ctx),
       AppState::MainApp => self.draw_main_app(ctx),
       AppState::Diagnostics => self.draw_diagnostics_screen(ctx),
+      AppState::DoomMode => crate::doom_mode::draw_doom_screen(self, ctx),
     }
 
-    // Request a repaint to ensure the UI is updated
+    // Request a repaint to ensure animations and updates are smooth
     ctx.request_repaint();
   }
 }
 
+// --- Main Function ---
 pub fn run() -> Result<(), eframe::Error> {
   let mut app = MyApp::default();
   app.setup_midi();
-
   let options = eframe::NativeOptions {
     viewport: egui::ViewportBuilder::default(),
     ..Default::default()
   };
-  eframe::run_native(
-    "Rust Synthesizer",
-    options,
-    Box::new(|_cc| Box::new(app)),
-  )
+  eframe::run_native("Rust Synthesizer", options, Box::new(|_cc| Box::new(app)))
 }
