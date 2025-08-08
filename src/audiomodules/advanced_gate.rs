@@ -1,6 +1,6 @@
-//Delta Time, GateState, AdvGate
-
-const dt: u128 = 1/44100;
+use crate::audiomodules::AudioModule;
+use crate::synth_state::SynthState;
+const DT: f64 = 1.0/44100.0;
 
 enum GateState {
     Attack,
@@ -14,25 +14,36 @@ pub struct AdvGate {
 
     pub attack: u8,
     pub decay: u8,
-    pub sustain: u8,
+    pub sustain: u8,        //=1
     pub release: u8,
 
     envelop: f32,
     gate_state: GateState,
+    
 }
 
 impl AdvGate {
-    pub fn get_envelop(&self) -> f32 {                          //used to get envelop
+    
+    
+    fn get_envelop(&self) -> f32 {                          //used to get envelop
         self.envelop
     }
 
-    pub fn checkUnpress(&mut self) {                            //checks if key is unpressed
+    fn check_unpress(&mut self) {                            //checks if key is unpressed
             if SynthState.has_key_pressed.load(Ordering::Relaxed) == false {
                     self.gate_state = GateState::Release;
                 }
         }
 
-    pub fn updateEnvelop(&mut self, dt: f32){                   //dt = delta time
+    fn update_envelop(&mut self){
+        Self {
+            attack: todo!(),
+            decay: todo!(),
+            sustain: todo!(),
+            release: todo!(),
+            envelop: todo!(),
+            gate_state: todo!(),
+        };
         match self.gate_state {
             GateState::Idle    => {                             //IDLE
                 if SynthState.has_key_pressed.load(Ordering::Relaxed) == true {
@@ -40,28 +51,28 @@ impl AdvGate {
                 }
             }
             GateState::Attack  => {                             //ATTACK
-                self.envelop += dt * (1.0/attack);
+                self.envelop += DT * (1.0/attack);
 
                 if self.envelop >= 1.0 {
                     self.envelop = 1.0;
                     self.gate_state = GateState::Decay;
                 }
-                self.checkUnpress(); //catches preemptive unpress
+                self.check_unpress(); //catches preemptive unpress
             }
             GateState::Decay   => {                             //DECAY
-                self.envelop -= dt * (1.0/decay);
+                self.envelop -= DT * (1.0/self.decay);
 
                 if self.envelop <= sustain {
                     self.envelop = sustain;
                     self.gate_state = GateState::Sustain;
                 }
-                self.checkUnpress();
+                self.check_unpress();
             }
             GateState::Sustain => {                             //SUSTAIN
-                self.checkUnpress();
+                self.check_unpress();
             }
             GateState::Release => {                             //RELEASE
-                self.envelop -= dt * (1.0/release);
+                self.envelop -= DT * (1.0/release);
 
                 if self.envelop <= 0 {
                     self.envelop = 0;
@@ -71,5 +82,12 @@ impl AdvGate {
 
         }
         
+    }
+}
+
+
+impl AudioModule for AdvGate {
+    fn process(&mut self, output: &mut [f32]) {
+
     }
 }
