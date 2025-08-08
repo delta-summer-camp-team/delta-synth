@@ -119,7 +119,7 @@ mod rotary_knob {
 
 use rotary_knob::RotaryKnob;
 
-struct MyApp {
+pub struct MyApp {
   knob1: f32,
   knob2: f32,
   slider_vals: [f32; 4],
@@ -359,6 +359,31 @@ impl MyApp {
   }
 }
 
+impl eframe::App for MyApp {
+  fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+    // Load logo texture once
+    if self.logo_texture.is_none() {
+      let image_bytes = include_bytes!("../logo.png");
+      let image = image::load_from_memory(image_bytes).expect("Failed to load logo image");
+      let size = [image.width() as _, image.height() as _];
+      let image_buffer = image.to_rgba8();
+      let pixels = image_buffer.as_flat_samples();
+      let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+
+      self.logo_texture = Some(ctx.load_texture("logo", color_image, Default::default()));
+    }
+
+    // Set the visuals for the entire application based on the current style
+    ctx.set_visuals(self.current_style.get_visuals());
+
+    // Render UI based on the current application state
+    match self.app_state {
+      AppState::StartScreen => self.draw_start_screen(ctx),
+      AppState::MainApp => self.draw_main_app(ctx),
+    }
+  }
+}
+
 pub fn run() -> Result<(), eframe::Error> {
   let mut app = MyApp::default();
   app.setup_midi();
@@ -392,29 +417,4 @@ fn styled_button(ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response
       .rounding(egui::Rounding::same(20.0))
       .fill(fill_color),
   )
-}
-
-impl eframe::App for MyApp {
-  fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-    // Load logo texture once
-    if self.logo_texture.is_none() {
-      let image_bytes = include_bytes!("../logo.png");
-      let image = image::load_from_memory(image_bytes).expect("Failed to load logo image");
-      let size = [image.width() as _, image.height() as _];
-      let image_buffer = image.to_rgba8();
-      let pixels = image_buffer.as_flat_samples();
-      let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-
-      self.logo_texture = Some(ctx.load_texture("logo", color_image, Default::default()));
-    }
-
-    // Set the visuals for the entire application based on the current style
-    ctx.set_visuals(self.current_style.get_visuals());
-
-    // Render UI based on the current application state
-    match self.app_state {
-      AppState::StartScreen => self.draw_start_screen(ctx),
-      AppState::MainApp => self.draw_main_app(ctx),
-    }
-  }
 }

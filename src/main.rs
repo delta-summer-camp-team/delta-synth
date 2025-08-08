@@ -1,6 +1,9 @@
 mod gui;
+mod gui_style;
 mod rotary_knob;
+mod styles;
+mod app;
 
-// The main function now simply calls the public `run` function from the `gui` module.
-fn main() -> Result<(), eframe::Error> {gui::run()
+fn main() -> Result<(), eframe::Error> {
+  gui::run()
 }
