@@ -11,7 +11,7 @@ use cpal::{Device, SupportedStreamConfig};
 use anyhow::Result;
 use midir::{MidiInput, MidiInputConnection};
 
-mod synth_state; // подключаем модуль
+
 use crate::synth_state::SynthState; // импортируем структуру
 
 
