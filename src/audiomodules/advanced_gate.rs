@@ -3,10 +3,10 @@ enum GateState {
     Decay,
     Sustain,
     Release,
-    Idle,            //maybe not needed
+    Idle,
 }
 
-pub struct SynthState {
+pub struct AdvGate {
 
     pub attack: u8,
     pub decay: u8,
@@ -18,19 +18,52 @@ pub struct SynthState {
     gate_state: GateState,
 }
 
-impl SynthState {
-    pub fn updateEnvelop(&mut self, dt: f32, gate_active: bool){ //dt = delta time
-        match self.gate_state {
-            GateState::Attack => {
-                self.envelop += dt * (1/attack)
-            }
+impl AdvGate {
+    pub fn updateEnvelop(&mut self, dt: f32){ //dt = delta time
+
+        fn checkUnpress(){ //checks if key is unpressed
+            if SynthState.has_key_pressed.load(Ordering::Relaxed) = false {
+                    self.gate_state = GateState::Release;
+                }
         }
-        if self.envelop >= 1.0 {
+
+        match self.gate_state {
+            GateState::Idle => {
+                if SynthState.has_key_pressed.load(Ordering::Relaxed) = true {
+                    self.gate_state = GateState::Attack;
+                }
+            }
+            GateState::Attack => {                              //ATTACK
+                self.envelop += dt * (1.0/attack);
+
+                if self.envelop >= 1.0 {
                     self.envelop = 1.0;
                     self.gate_state = GateState::Decay;
                 }
-        //TODO: Decay, etc.
+                checkUnpress(); //catches preemptive unpress
+            }
+            GateState::Decay => {                               //DECAY
+                self.envelop -= dt * (1.0/decay);
+
+                if self.envelop <= sustain {
+                    self.envelop = sustain;
+                    self.gate_state = GateState::Sustain;
+                }
+                checkUnpress();
+            }
+            GateState::Sustain => {                             //SUSTAIN
+                checkUnpress()
+            }
+            GateState::Release => {                             //RELEASE
+                self.envelop -= dt * (1.0/release);
+
+                if self.envelop <= 0 {
+                    self.envelop = 0;
+                    self.gate_state = GateState::Idle;
+                }
+            }
+
+        }
+        
     }
 }
-
-//todo: write code
