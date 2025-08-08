@@ -130,6 +130,7 @@ pub struct MyApp {
   logo_texture: Option<TextureHandle>,
   current_style: GUIStyle,
   app_state: AppState, // New state field
+  is_fullscreen: bool,
 }
 
 impl Default for MyApp {
@@ -145,6 +146,7 @@ impl Default for MyApp {
       logo_texture: None,
       current_style: GUIStyle::DarkMode, // Default style
       app_state: AppState::StartScreen,  // Start with the selection screen
+      is_fullscreen: true,
     }
   }
 }
@@ -246,6 +248,18 @@ impl MyApp {
           self.current_style = GUIStyle::DarkMode;
           self.app_state = AppState::MainApp;
         }
+        ui.add_space(10.0);
+        if ui
+          .add(
+            Button::new("Turquoise Mode")
+              .min_size(Vec2::new(200.0, 50.0))
+              .rounding(10.0),
+          )
+          .clicked()
+        {
+          self.current_style = GUIStyle::TurquoiseMode;
+          self.app_state = AppState::MainApp;
+        }
       });
     });
   }
@@ -260,6 +274,10 @@ impl MyApp {
           ui.add_space(5.0);
           if ui.button("↩ Back to Style Selection").clicked() {
             self.app_state = AppState::StartScreen;
+          }
+          if ui.button("Toggle Fullscreen").clicked() {
+            self.is_fullscreen = !self.is_fullscreen;
+            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
           }
           ui.add_space(10.0);
           if let Some(texture) = &self.logo_texture {
@@ -306,13 +324,13 @@ impl MyApp {
       ui.add_space(10.0);
       ui.columns(3, |columns| {
         columns[0].vertical_centered(|ui| {
-          if styled_button(ui, "BUTTON 1", self.button1_pressed).clicked() {
+          if self.styled_button(ui, "BUTTON 1", self.button1_pressed).clicked() {
             self.button1_pressed = !self.button1_pressed;
             let value_to_send = if self.button1_pressed { 1.0 } else { 0.0 };
             cc_to_send.push((20, value_to_send));
           }
           ui.add_space(5.0);
-          if styled_button(ui, "BUTTON 2", false).clicked() {
+          if self.styled_button(ui, "BUTTON 2", false).clicked() {
             cc_to_send.push((21, 1.0));
           }
         });
@@ -325,11 +343,11 @@ impl MyApp {
                 for (i, val) in self.slider_vals.iter_mut().enumerate() {
                   ui.vertical(|ui| {
                     ui.label(format!("S{}", i + 1));
-                    let slider = egui::Slider::new(val, -1.0..=1.0)
+                    let slider = egui::Slider::new(val, -0.5..=0.5)
                       .vertical()
                       .text("");
                     if ui.add_sized([200.0, 1000.0], slider).changed() {
-                      cc_to_send.push((1 + i as u8, *val));
+                      cc_to_send.push((1 + i as u8, *val + 0.5));
                     }
                   });
                   ui.add_space(15.0);
@@ -339,13 +357,13 @@ impl MyApp {
         });
 
         columns[2].vertical_centered(|ui| {
-          if styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
+          if self.styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
             self.button3_pressed = !self.button3_pressed;
             let value_to_send = if self.button3_pressed { 1.0 } else { 0.0 };
             cc_to_send.push((22, value_to_send));
           }
           ui.add_space(5.0);
-          if styled_button(ui, "BUTTON 4", false).clicked() {
+          if self.styled_button(ui, "BUTTON 4", false).clicked() {
             cc_to_send.push((23, 1.0));
           }
         });
@@ -356,6 +374,27 @@ impl MyApp {
     for (controller, value) in cc_to_send {
       self.send_cc(controller, value);
     }
+  }
+
+  fn styled_button(&self, ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
+    let visuals = self.current_style.get_visuals();
+    let fill_color = if pressed {
+      visuals.widgets.active.bg_fill
+    } else {
+      visuals.widgets.inactive.bg_fill
+    };
+
+    ui.add(
+      Button::new(
+        RichText::new(text)
+          .heading()
+          .monospace()
+          .color(Color32::BLACK),
+      )
+        .min_size(Vec2::new(240.0, 80.0))
+        .rounding(egui::Rounding::same(20.0))
+        .fill(fill_color),
+    )
   }
 }
 
@@ -389,32 +428,12 @@ pub fn run() -> Result<(), eframe::Error> {
   app.setup_midi();
 
   let options = eframe::NativeOptions {
-    viewport: egui::ViewportBuilder::default().with_fullscreen(true),
+    viewport: egui::ViewportBuilder::default(),
     ..Default::default()
   };
   eframe::run_native(
     "Rust Synthesizer",
     options,
     Box::new(|_cc| Box::new(app)),
-  )
-}
-
-fn styled_button(ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
-  let fill_color = if pressed {
-    Color32::from_rgb(0xb0, 0x70, 0x00)
-  } else {
-    Color32::from_rgb(0xf3, 0xa3, 0x09)
-  };
-
-  ui.add(
-    Button::new(
-      RichText::new(text)
-        .heading()
-        .monospace()
-        .color(Color32::BLACK),
-    )
-      .min_size(Vec2::new(240.0, 80.0))
-      .rounding(egui::Rounding::same(20.0))
-      .fill(fill_color),
   )
 }
