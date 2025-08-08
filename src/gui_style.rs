@@ -1,13 +1,12 @@
 use eframe::egui::Visuals;
 
-use crate::styles::{dark_style, diagnostics_style, orange_style, turquoise_style};
+use crate::styles::{dark_style, orange_style, turquoise_style};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum GUIStyle {
   OrangeMode,
   DarkMode,
   TurquoiseMode,
-  Diagnostics,
 }
 
 impl GUIStyle {
@@ -16,7 +15,6 @@ impl GUIStyle {
       GUIStyle::OrangeMode => orange_style::orange_mode_visuals(),
       GUIStyle::DarkMode => dark_style::dark_mode_visuals(),
       GUIStyle::TurquoiseMode => turquoise_style::turquoise_mode_visuals(),
-      GUIStyle::Diagnostics => diagnostics_style::diagnostics_mode_visuals(),
     }
   }
 }
