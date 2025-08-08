@@ -1,4 +1,4 @@
-use eframe::egui::{self, Color32, Pos2, Rect};
+use eframe::egui::{self, Color32, Painter, Pos2, Rect};
 
 pub struct Keyboard {
   pressed_keys: Vec<u8>,

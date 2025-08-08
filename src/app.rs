@@ -6,6 +6,7 @@ use eframe::egui::{
   Ui, Vec2, Widget,
 };
 use midir::{MidiInput, MidiOutput, MidiOutputConnection};
+use std::io::{stdin, stdout, Write};
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 // --- AppState Enum ---
@@ -98,7 +99,7 @@ mod rotary_knob {
         let font = TextStyle::Small.resolve(ui.style());
         painter.text(
           center,
-          egui::Align2::CENTER_CENTER,
+          eframe::egui::Align2::CENTER_CENTER,
           val_str,
           font,
           visuals.text_color(),
@@ -225,6 +226,11 @@ impl MyApp {
     egui::CentralPanel::default().show(ctx, |ui| {
       ui.vertical_centered(|ui| {
         ui.add_space(ui.available_height() * 0.2);
+        if let Some(texture) = &self.logo_texture {
+          let img = egui::Image::new(texture);
+          let sized_img = img.fit_to_exact_size(Vec2::new(1000.0, 200.0));
+          ui.add(sized_img);
+        }
         ui.add_space(50.0);
         ui.heading("Choose a Style");
         ui.add_space(20.0);
@@ -333,6 +339,56 @@ impl MyApp {
       });
     });
 
+    egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+      ui.add_space(10.0);
+      ui.columns(3, |columns| {
+        columns[0].vertical_centered(|ui| {
+          if self.styled_button(ui, "BUTTON 1", self.button1_pressed).clicked() {
+            self.button1_pressed = !self.button1_pressed;
+            let value_to_send = if self.button1_pressed { 1.0 } else { 0.0 };
+            cc_to_send.push((20, value_to_send));
+          }
+          ui.add_space(5.0);
+          if self.styled_button(ui, "BUTTON 2", false).clicked() {
+            cc_to_send.push((21, 1.0));
+          }
+        });
+
+        columns[1].vertical_centered(|ui| {
+          egui::ScrollArea::horizontal()
+            .auto_shrink([false; 2])
+            .show(ui, |ui| {
+              ui.horizontal(|ui| {
+                for (i, val) in self.slider_vals.iter_mut().enumerate() {
+                  ui.vertical(|ui| {
+                    ui.label(format!("S{}", i + 1));
+                    let slider = egui::Slider::new(val, -0.5..=0.5)
+                      .vertical()
+                      .text("");
+                    if ui.add_sized([200.0, 1000.0], slider).changed() {
+                      cc_to_send.push((1 + i as u8, *val + 0.5));
+                    }
+                  });
+                  ui.add_space(15.0);
+                }
+              });
+            });
+        });
+
+        columns[2].vertical_centered(|ui| {
+          if self.styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
+            self.button3_pressed = !self.button3_pressed;
+            let value_to_send = if self.button3_pressed { 1.0 } else { 0.0 };
+            cc_to_send.push((22, value_to_send));
+          }
+          ui.add_space(5.0);
+          if self.styled_button(ui, "BUTTON 4", false).clicked() {
+            cc_to_send.push((23, 1.0));
+          }
+        });
+      });
+      ui.add_space(10.0);
+    });
 
     for (controller, value) in cc_to_send {
       self.send_cc(controller, value);
@@ -450,7 +506,7 @@ impl MyApp {
     }
   }
 
-  fn styled_button(&self, ui: &mut Ui, text: &str, pressed: bool) -> Response {
+  fn styled_button(&self, ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
     let visuals = self.current_style.get_visuals();
     let (fill_color, text_color) = if pressed {
       (
