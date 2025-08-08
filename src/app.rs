@@ -96,7 +96,7 @@ mod rotary_knob {
         let font = TextStyle::Small.resolve(ui.style());
         painter.text(
           center,
-          eframe::egui::Align2::CENTER_CENTER,
+          egui::Align2::CENTER_CENTER,
           val_str,
           font,
           visuals.text_color(),
@@ -216,11 +216,7 @@ impl MyApp {
     egui::CentralPanel::default().show(ctx, |ui| {
       ui.vertical_centered(|ui| {
         ui.add_space(ui.available_height() * 0.2);
-        if let Some(texture) = &self.logo_texture {
-          let img = egui::Image::new(texture);
-          let sized_img = img.fit_to_exact_size(Vec2::new(1000.0, 200.0));
-          ui.add(sized_img);
-        }
+        
         ui.add_space(50.0);
         ui.heading("Choose a Style");
         ui.add_space(20.0);
@@ -376,7 +372,7 @@ impl MyApp {
     }
   }
 
-  fn styled_button(&self, ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
+  fn styled_button(&self, ui: &mut Ui, text: &str, pressed: bool) -> Response {
     let visuals = self.current_style.get_visuals();
     let fill_color = if pressed {
       visuals.widgets.active.bg_fill
