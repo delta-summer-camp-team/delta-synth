@@ -1,3 +1,7 @@
+//Delta Time, GateState, AdvGate
+
+const dt: u128 = 1/44100;
+
 enum GateState {
     Attack,
     Decay,
