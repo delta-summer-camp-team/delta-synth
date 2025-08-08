@@ -1,10 +1,13 @@
-use crate::audiomodules::AudioModule;
+use crate::audio_modules::AudioModule;
 use std::f32::consts::PI;
+use std::sync::Arc;
+use crate::synth_state::SynthState;
 
 pub enum Waveforma {
   Sine,
   Quadrat,
   Saw,
+  Triugolnik, 
 }
 
 
@@ -13,17 +16,19 @@ pub struct Oscillator {
   pub frequency: f32,
   pub sample_rate: f32,
   pub waveforma: Waveforma,
-  pub amplituda: f32
+  pub amplituda: f32,
+  pub synthstate: Arc<SynthState>,
 }
 
 impl Oscillator {
-  pub fn new(frequency: f32, sample_rate: f32, waveforma:Waveforma, amplituda:f32) -> Self {
+  pub fn new(frequency: f32, sample_rate: f32, waveforma:Waveforma, amplituda:f32, synthstate:Arc<SynthState>) -> Self {
     Self {
       phase: 0.0,
       frequency,
       sample_rate,
       waveforma,
-      amplituda
+      amplituda,
+      synthstate,
     }
   }
 }
@@ -31,11 +36,13 @@ impl Oscillator {
 
 pub fn midi_note_to_freq(note: u8) -> f32 {
   let nota = note as f32;
-  440.0 * 2.0_f32.powf(nota/12.0) 
+  return 440.0 * 2.0_f32.powf((nota - 69.0)/12.0);
 }
 
 impl AudioModule for Oscillator {
     fn process(&mut self, output: &mut [f32]) {
+      let midinota = self.synthstate.last_key.load(std::sync::atomic::Ordering::Relaxed);
+      self.frequency = midi_note_to_freq(midinota);
         let phase_increment = self.frequency / self.sample_rate;
         for sample in output.iter_mut() { 
             self.phase += phase_increment; 
@@ -49,7 +56,8 @@ impl AudioModule for Oscillator {
                 }else{
                  -1.0
                 }
-                Waveforma::Saw => self.phase % 1.0 * 2.0 - self.amplituda
+                Waveforma::Saw => 2.0 * self.phase - 1.0,
+                Waveforma::Triugolnik => 4.0 * (self.phase - 0.5).abs() - 1.0
                 };
             *sample = v * self.amplituda;
             }
