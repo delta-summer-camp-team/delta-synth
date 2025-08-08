@@ -1,9 +1,10 @@
+// src/app.rs
 use crate::gui_style::GUIStyle;
 use crate::keyboard::Keyboard;
 use eframe::egui;
 use eframe::egui::{
-  Button, Color32, Label, Rect, Response, RichText, Sense, TextStyle, TextureHandle,
-  Ui, Vec2, Widget,
+  Button, Color32, Image, Label, Pos2, Rect, Response, RichText, Sense, Shape, TextStyle,
+  TextureHandle, Ui, Vec2, Widget,
 };
 use midir::{MidiInput, MidiOutput, MidiOutputConnection};
 use std::io::{stdin, stdout, Write};
@@ -28,6 +29,7 @@ mod rotary_knob {
     size: f32,
     label: Option<&'a str>,
     show_value: bool,
+    texture: Option<&'a TextureHandle>,
   }
 
   impl<'a> RotaryKnob<'a> {
@@ -39,6 +41,7 @@ mod rotary_knob {
         size: 100.0,
         label: None,
         show_value: true,
+        texture: None,
       }
     }
 
@@ -56,6 +59,11 @@ mod rotary_knob {
       self.show_value = show;
       self
     }
+
+    pub fn with_texture(mut self, texture: &'a TextureHandle) -> Self {
+      self.texture = Some(texture);
+      self
+    }
   }
 
   impl<'a> Widget for RotaryKnob<'a> {
@@ -67,6 +75,7 @@ mod rotary_knob {
         size,
         label,
         show_value,
+        texture,
       } = self;
 
       let desired_size = Vec2::splat(size);
@@ -87,7 +96,22 @@ mod rotary_knob {
       let painter = ui.painter();
       let visuals = ui.style().interact(&response);
 
-      painter.circle(center, radius - 2.0, visuals.bg_fill, visuals.fg_stroke);
+      if let Some(tex) = texture {
+        // Create a circular clip mask
+        let circle = Shape::circle_filled(center, radius, Color32::WHITE);
+        let mut mesh = egui::Mesh::with_texture(tex.id());
+        mesh.add_rect_with_uv(
+          rect,
+          Rect::from_min_max(Pos2::new(0.0, 0.0), Pos2::new(1.0, 1.0)),
+          Color32::WHITE,
+        );
+
+        let mut clip_shape = Shape::Vec(vec![circle, Shape::Mesh(mesh)]);
+        painter.add(clip_shape);
+
+      } else {
+        painter.circle(center, radius - 2.0, visuals.bg_fill, visuals.fg_stroke);
+      }
 
       let normalized_value = (*value - min) / (max - min);
       let angle = (normalized_value * std::f32::consts::TAU) - std::f32::consts::PI;
@@ -120,6 +144,7 @@ mod rotary_knob {
   }
 }
 
+
 use rotary_knob::RotaryKnob;
 
 pub struct MyApp {
@@ -132,6 +157,7 @@ pub struct MyApp {
   button1_pressed: bool,
   button3_pressed: bool,
   logo_texture: Option<TextureHandle>,
+  antonui_texture: Option<TextureHandle>,
   current_style: GUIStyle,
   app_state: AppState, // New state field
   is_fullscreen: bool,
@@ -153,6 +179,7 @@ impl Default for MyApp {
       button1_pressed: false,
       button3_pressed: false,
       logo_texture: None,
+      antonui_texture: None,
       current_style: GUIStyle::DarkMode, // Default style
       app_state: AppState::StartScreen,  // Start with the selection screen
       is_fullscreen: true,
@@ -271,6 +298,11 @@ impl MyApp {
           self.app_state = AppState::MainApp;
         }
         ui.add_space(10.0);
+        if ui.add(Button::new("Anton Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
+          self.current_style = GUIStyle::AntonMode;
+          self.app_state = AppState::MainApp;
+        }
+        ui.add_space(10.0);
         if ui
           .add(
             Button::new("Diagnostics")
@@ -312,27 +344,31 @@ impl MyApp {
       ui.add_space(50.0);
       ui.columns(3, |columns| {
         columns[0].with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-          if ui.add(
-            RotaryKnob::new(&mut self.knob1, 0.0, 1.0)
-              .with_label("CUTOFF")
-              .with_size(200.0)
-              .show_value(true),
-          )
-            .changed()
-          {
+          let mut knob = RotaryKnob::new(&mut self.knob1, 0.0, 1.0)
+            .with_label("CUTOFF")
+            .with_size(200.0)
+            .show_value(true);
+          if self.current_style == GUIStyle::AntonMode {
+            if let Some(texture) = &self.antonui_texture {
+              knob = knob.with_texture(texture);
+            }
+          }
+          if ui.add(knob).changed() {
             cc_to_send.push((10, self.knob1));
           }
         });
 
         columns[2].with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-          if ui.add(
-            RotaryKnob::new(&mut self.knob2, 0.0, 1.0)
-              .with_label("RESONANCE")
-              .with_size(200.0)
-              .show_value(true),
-          )
-            .changed()
-          {
+          let mut knob = RotaryKnob::new(&mut self.knob2, 0.0, 1.0)
+            .with_label("RESONANCE")
+            .with_size(200.0)
+            .show_value(true);
+          if self.current_style == GUIStyle::AntonMode {
+            if let Some(texture) = &self.antonui_texture {
+              knob = knob.with_texture(texture);
+            }
+          }
+          if ui.add(knob).changed() {
             cc_to_send.push((11, self.knob2));
           }
         });
@@ -561,6 +597,19 @@ impl eframe::App for MyApp {
 
       self.logo_texture = Some(ctx.load_texture("logo", color_image, Default::default()));
     }
+
+    // Load antonui texture once
+    if self.antonui_texture.is_none() {
+      let image_bytes = include_bytes!("../antonui.jpg");
+      let image = image::load_from_memory(image_bytes).expect("Failed to load antonui image");
+      let size = [image.width() as _, image.height() as _];
+      let image_buffer = image.to_rgba8();
+      let pixels = image_buffer.as_flat_samples();
+      let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
+
+      self.antonui_texture = Some(ctx.load_texture("antonui", color_image, Default::default()));
+    }
+
 
     // Set the visuals for the entire application based on the current style
     ctx.set_visuals(self.current_style.get_visuals());
