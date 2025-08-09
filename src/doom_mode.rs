@@ -1,10 +1,7 @@
 #![allow(dead_code, unused_variables, unused_imports, unused_mut)]
 // src/doom_mode.rs
-// Enhanced Doom-mode implementation with:
-// - Procedural map generation
-// - Visibility checking
-// - Monster AI improvements
-// - Animated effects
+// Immersive application based on the original Doom source code style.
+// This code has been restructured to be more modular and function like the original C codebase.
 
 use crate::app::MyApp;
 use eframe::egui::{self, Color32, Key, Pos2, Rect, Stroke, Vec2};
@@ -14,16 +11,16 @@ use std::f32::consts::PI;
 use rand::seq::SliceRandom;
 
 // ----------------------------- Constants ---------------------------------
-const MAP_WIDTH: usize = 24;
-const MAP_HEIGHT: usize = 24;
-const DOOR_TILE: u8 = 2;
-const TROPHY_TILE: u8 = 3;
+const MAP_WIDTH: usize = 64;
+const MAP_HEIGHT: usize = 64;
+const TROPHY_TILE: u8 = 2; // Winning tile
 const WALL_TILE: u8 = 1;
 const EMPTY_TILE: u8 = 0;
-const PLAYER_RADIUS: f32 = 0.2; // Small radius for player collision checks
-const ENEMY_RADIUS: f32 = 0.3; // Small radius for enemy collision checks
+const PLAYER_RADIUS: f32 = 0.2;
+const ENEMY_RADIUS: f32 = 0.3;
 
 // ----------------------------- Data Types ---------------------------------
+// Mimics the original mobj_t (moving object) structure
 #[derive(Clone)]
 pub struct Enemy {
   pub pos: Vec2,
@@ -47,6 +44,8 @@ pub struct Trophy {
   pub glow_intensity: f32,
 }
 
+// Removed the Door struct as doors no longer exist in this simplified map.
+
 pub struct DoomState {
   // Player state
   pub health: f32,
@@ -62,202 +61,115 @@ pub struct DoomState {
   pub enemies: Vec<Enemy>,
   pub map: Vec<Vec<u8>>,
   pub trophy: Trophy,
+  // Removed `doors`, `health_items`, and `armor_items` fields from the struct.
 
   // Game state
   pub game_over: bool,
   pub game_won: bool,
   pub blood_splatters: Vec<(Vec2, f32)>,
-  pub last_spawn_time: Instant,
   pub last_shot_time: Option<Instant>,
 }
 
 // ----------------------------- Map Generation ----------------------------
-fn generate_dungeon() -> Vec<Vec<u8>> {
-  let mut rng = thread_rng();
+// This function creates a large, detailed static map.
+fn generate_static_dungeon() -> Vec<Vec<u8>> {
   let mut map = vec![vec![WALL_TILE; MAP_WIDTH]; MAP_HEIGHT];
+  let mut rng = thread_rng();
 
-  // Random walk algorithm for corridors
-  let (mut x, mut y) = (MAP_WIDTH / 2, MAP_HEIGHT / 2);
-  for _ in 0..500 {
-    map[y][x] = EMPTY_TILE;
-    match rng.gen_range(0..4) {
-      0 => x = x.saturating_add(1).min(MAP_WIDTH - 1),
-      1 => x = x.saturating_sub(1),
-      2 => y = y.saturating_add(1).min(MAP_HEIGHT - 1),
-      _ => y = y.saturating_sub(1),
+  // Fill with empty space
+  for y in 1..MAP_HEIGHT - 1 {
+    for x in 1..MAP_WIDTH - 1 {
+      map[y][x] = EMPTY_TILE;
     }
   }
 
-  // Cellular automata pass for natural-looking caves
-  for _ in 0..4 {
-    let mut new_map = map.clone();
-    for y in 1..MAP_HEIGHT - 1 {
-      for x in 1..MAP_WIDTH - 1 {
-        let neighbors = count_wall_neighbors(&map, x, y);
-        new_map[y][x] = if neighbors > 4 { WALL_TILE } else { EMPTY_TILE };
+  // Generate a labyrinth by placing random walls
+  for _ in 0..6000 {
+    let x = rng.gen_range(1..MAP_WIDTH - 1);
+    let y = rng.gen_range(1..MAP_HEIGHT - 1);
+    map[y][x] = WALL_TILE;
+  }
+
+  // Create random, open corridors to make a navigable maze
+  for _ in 0..1500 {
+    let start_x = rng.gen_range(1..MAP_WIDTH - 1);
+    let start_y = rng.gen_range(1..MAP_HEIGHT - 1);
+    let len = rng.gen_range(3..10);
+    let dir = rng.gen_range(0..4);
+
+    for i in 0..len {
+      match dir {
+        0 => { // right
+          if start_x + i < MAP_WIDTH - 1 { map[start_y][start_x + i] = EMPTY_TILE; }
+        },
+        1 => { // left
+          if start_x > i { map[start_y][start_x - i] = EMPTY_TILE; }
+        },
+        2 => { // down
+          if start_y + i < MAP_HEIGHT - 1 { map[start_y + i][start_x] = EMPTY_TILE; }
+        },
+        3 => { // up
+          if start_y > i { map[start_y - i][start_x] = EMPTY_TILE; }
+        },
+        _ => {}
       }
     }
-    map = new_map;
   }
 
-  // Place special tiles
-  place_special_tiles(&mut map, &mut rng);
+  // Set fixed start and end tiles
+  map[1][1] = EMPTY_TILE;
+  map[MAP_HEIGHT - 2][MAP_WIDTH - 2] = TROPHY_TILE;
 
   map
 }
 
-fn count_wall_neighbors(map: &Vec<Vec<u8>>, x: usize, y: usize) -> u8 {
-  let mut count = 0;
-  for dy in -1..=1 {
-    for dx in -1..=1 {
-      if dx == 0 && dy == 0 { continue; }
-      let nx = (x as isize + dx) as usize;
-      let ny = (y as isize + dy) as usize;
-      if nx < MAP_WIDTH && ny < MAP_HEIGHT && map[ny][nx] == WALL_TILE {
-        count += 1;
-      }
-    }
-  }
-  count
-}
-
-fn place_special_tiles(map: &mut Vec<Vec<u8>>, rng: &mut impl Rng) {
-  let mut placed_door = false;
-  let mut placed_trophy = false;
-
-  // Scan map in random order to place special tiles
-  let mut positions: Vec<(usize, usize)> = (1..MAP_HEIGHT - 1)
-    .flat_map(|y| (1..MAP_WIDTH - 1).map(move |x| (x, y)))
-    .collect();
-
-  positions.shuffle(rng);
-
-  for (x, y) in positions {
-    if map[y][x] == EMPTY_TILE {
-      // Place door if suitable location found
-      if !placed_door && rng.gen_bool(0.05) && has_wall_neighbor(map, x, y) {
-        map[y][x] = DOOR_TILE;
-        placed_door = true;
-      }
-      // Place trophy if suitable location found
-      else if !placed_trophy && rng.gen_bool(0.03) {
-        map[y][x] = TROPHY_TILE;
-        placed_trophy = true;
-      }
-
-      if placed_door && placed_trophy {
-        break;
-      }
-    }
-  }
-
-  // Fallback for door placement
-  if !placed_door {
-    let mut found = false;
-    for y in 1..MAP_HEIGHT - 1 {
-      for x in 1..MAP_WIDTH - 1 {
-        if map[y][x] == EMPTY_TILE {
-          map[y][x] = DOOR_TILE;
-          found = true;
-          break;
-        }
-      }
-      if found { break; }
-    }
-  }
-  // Fallback for trophy placement
-  if !placed_trophy {
-    let mut found = false;
-    for y in (1..MAP_HEIGHT - 1).rev() {
-      for x in (1..MAP_WIDTH - 1).rev() {
-        if map[y][x] == EMPTY_TILE {
-          map[y][x] = TROPHY_TILE;
-          found = true;
-          break;
-        }
-      }
-      if found { break; }
-    }
-  }
-}
-
-fn has_wall_neighbor(map: &Vec<Vec<u8>>, x: usize, y: usize) -> bool {
-  let directions = [(0, 1), (1, 0), (0, -1), (-1, 0)];
-  directions.iter().any(|(dx, dy)| {
-    let nx = (x as isize + dx) as usize;
-    let ny = (y as isize + dy) as usize;
-    nx < MAP_WIDTH && ny < MAP_HEIGHT && map[ny][nx] == WALL_TILE
-  })
-}
-
 // ----------------------------- Drawing Functions --------------------------
-
+// Mimics the sprite drawing functions from the original codebase
 fn draw_enemy(painter: &egui::Painter, pos: Pos2, size: Vec2, enemy: &Enemy) {
   let center = Pos2::new(pos.x, pos.y - size.y * 0.3);
   let frame = enemy.animation_frame.sin().abs();
 
-  match enemy.monster_type {
-    MonsterType::Demon => {
-      // Draw demon body with pulsing animation
-      let pulse_size = size * (1.0 + frame * 0.1);
-      painter.rect_filled(
-        Rect::from_center_size(center, pulse_size),
-        5.0,
-        Color32::from_rgb(150 + (frame * 50.0).min(105.0) as u8, 0, 0)
-      );
+  // Unified drawing logic for a single enemy type (Demon) with a pixel-art style
+  let body_color = Color32::from_rgb(200, 0, 0);
+  let head_color = Color32::from_rgb(220, 0, 0);
+  let eye_color = Color32::from_rgba_unmultiplied(255, 255, 0, (200.0 + frame * 55.0) as u8);
 
-      // Draw demon features
-      let head_pos = Pos2::new(center.x, center.y - pulse_size.y * 0.25);
-      painter.circle_filled(head_pos, pulse_size.x * 0.3, Color32::from_rgb(200, 0, 0));
-      painter.circle_filled(
-        Pos2::new(head_pos.x - pulse_size.x * 0.15, head_pos.y),
-        pulse_size.x * 0.08,
-        Color32::YELLOW
-      );
-      painter.circle_filled(
-        Pos2::new(head_pos.x + pulse_size.x * 0.15, head_pos.y),
-        pulse_size.x * 0.08,
-        Color32::YELLOW
-      );
-    },
-    MonsterType::Cacodemon => {
-      // Draw floating eye monster
-      let body_size = size * 0.7;
-      painter.circle_filled(center, body_size.x * 0.5, Color32::from_rgb(200, 100, 100));
+  // Draw body
+  painter.rect_filled(
+    Rect::from_center_size(center, size),
+    2.0,
+    body_color
+  );
 
-      // Animated mouth
-      let mouth_width = body_size.x * 0.6 * (0.5 + frame * 0.5);
-      painter.rect_filled(
-        Rect::from_center_size(
-          Pos2::new(center.x, center.y + body_size.y * 0.15),
-          Vec2::new(mouth_width, body_size.y * 0.1)
-        ),
-        2.0,
-        Color32::from_rgb(50, 0, 0)
-      );
-    },
-    MonsterType::Imp => {
-      // Draw agile imp enemy
-      let body_size = size * 0.8;
-      let body_rect = Rect::from_center_size(center, body_size);
-      painter.rect_filled(body_rect, 4.0, Color32::from_rgb(100, 50, 0));
+  // Draw head
+  let head_size = Vec2::new(size.x * 0.7, size.y * 0.5);
+  let head_rect = Rect::from_center_size(Pos2::new(center.x, center.y - size.y * 0.4), head_size);
+  painter.rect_filled(head_rect, 2.0, head_color);
 
-      // Claw attack animation
-      let claw_offset = body_size.x * 0.3 * (1.0 + frame * 0.2);
-      painter.line_segment(
-        [Pos2::new(center.x - claw_offset, center.y),
-          Pos2::new(center.x - claw_offset * 1.5, center.y - body_size.y * 0.25)],
-        Stroke::new(3.0, Color32::from_rgb(150, 100, 0))
-      );
-      painter.line_segment(
-        [Pos2::new(center.x + claw_offset, center.y),
-          Pos2::new(center.x + claw_offset * 1.5, center.y - body_size.y * 0.25)],
-        Stroke::new(3.0, Color32::from_rgb(150, 100, 0))
-      );
-    }
-  }
+  // Draw horns
+  painter.line_segment(
+    [Pos2::new(head_rect.min.x, head_rect.min.y), Pos2::new(head_rect.min.x - head_size.x * 0.3, head_rect.min.y - head_size.y * 0.5)],
+    Stroke::new(2.0, Color32::from_rgb(150, 150, 150))
+  );
+  painter.line_segment(
+    [Pos2::new(head_rect.max.x, head_rect.min.y), Pos2::new(head_rect.max.x + head_size.x * 0.3, head_rect.min.y - head_size.y * 0.5)],
+    Stroke::new(2.0, Color32::from_rgb(150, 150, 150))
+  );
+
+  // Draw eyes
+  painter.circle_filled(
+    Pos2::new(head_rect.center().x - head_size.x * 0.2, head_rect.center().y),
+    head_size.x * 0.1,
+    eye_color
+  );
+  painter.circle_filled(
+    Pos2::new(head_rect.center().x + head_size.x * 0.2, head_rect.center().y),
+    head_size.x * 0.1,
+    eye_color
+  );
 }
 
+// Draws the sky and floor textures
 fn draw_background(painter: &egui::Painter, rect: Rect) {
   // Draw gradient sky with a loop
   let sky_rect = Rect::from_min_max(
@@ -295,33 +207,43 @@ fn draw_background(painter: &egui::Painter, rect: Rect) {
   );
 }
 
+// Raycasting engine for walls and objects
 fn draw_walls(painter: &egui::Painter, rect: Rect, state: &DoomState) {
   let width = rect.width() as i32;
+  let player_x_floor = state.player_pos.x.floor();
+  let player_y_floor = state.player_pos.y.floor();
 
   for x in 0..width {
     let camera_x = 2.0 * x as f32 / width as f32 - 1.0;
     let ray_dir = state.player_dir + state.camera_plane * camera_x;
 
-    let mut map_pos = Vec2::new(
-      state.player_pos.x.floor(),
-      state.player_pos.y.floor()
-    );
-
-    let mut side_dist = Vec2::new(0.0, 0.0);
+    let mut map_pos = Vec2::new(player_x_floor, player_y_floor);
     let delta_dist = Vec2::new(
       if ray_dir.x == 0.0 { f32::INFINITY } else { ray_dir.x.abs().recip() },
       if ray_dir.y == 0.0 { f32::INFINITY } else { ray_dir.y.abs().recip() }
     );
 
+    let mut side_dist = Vec2::new(0.0, 0.0);
     let step = Vec2::new(
       ray_dir.x.signum(),
       ray_dir.y.signum()
     );
 
-    // DDA algorithm
+    if ray_dir.x < 0.0 {
+      side_dist.x = (state.player_pos.x - map_pos.x) * delta_dist.x;
+    } else {
+      side_dist.x = (map_pos.x + 1.0 - state.player_pos.x) * delta_dist.x;
+    }
+    if ray_dir.y < 0.0 {
+      side_dist.y = (state.player_pos.y - map_pos.y) * delta_dist.y;
+    } else {
+      side_dist.y = (map_pos.y + 1.0 - state.player_pos.y) * delta_dist.y;
+    }
+
     let mut hit = false;
-    let mut side = 0; // NS or EW wall
+    let mut side = 0;
     let mut perp_wall_dist = 0.0;
+    let mut current_tile_type = WALL_TILE;
 
     while !hit {
       if side_dist.x < side_dist.y {
@@ -334,118 +256,66 @@ fn draw_walls(painter: &egui::Painter, rect: Rect, state: &DoomState) {
         side = 1;
       }
 
-      match map_tile_at(&state.map, map_pos.x as isize, map_pos.y as isize) {
-        Some(tile) if tile != EMPTY_TILE => {
+      if let Some(tile) = map_tile_at(&state.map, map_pos.x as isize, map_pos.y as isize) {
+        if tile != EMPTY_TILE {
           hit = true;
-          perp_wall_dist = if side == 0 {
-            (map_pos.x - state.player_pos.x + (1.0 - step.x) / 2.0) / ray_dir.x
+          current_tile_type = tile;
+        }
+      } else {
+        hit = true;
+        current_tile_type = WALL_TILE;
+      }
+    }
+
+    if current_tile_type != EMPTY_TILE {
+      perp_wall_dist = if side == 0 {
+        (map_pos.x - state.player_pos.x + (1.0 - step.x) / 2.0) / ray_dir.x
+      } else {
+        (map_pos.y - state.player_pos.y + (1.0 - step.y) / 2.0) / ray_dir.y
+      };
+
+      let line_height = (rect.height() / perp_wall_dist) as i32;
+      let draw_start = (-line_height / 2 + (rect.height() / 2.0) as i32).max(0);
+      let draw_end = (line_height / 2 + (rect.height() / 2.0) as i32).min(rect.height() as i32);
+
+      let color = match current_tile_type {
+        WALL_TILE | TROPHY_TILE => {
+          let wall_hit_x = if side == 0 { state.player_pos.y + perp_wall_dist * ray_dir.y } else { state.player_pos.x + perp_wall_dist * ray_dir.x };
+          let wall_hit_x = wall_hit_x - wall_hit_x.floor();
+
+          if (wall_hit_x * 8.0).floor() as i32 % 2 == 0 {
+            if side == 0 { Color32::from_rgb(160, 160, 160) } else { Color32::from_rgb(140, 140, 140) }
           } else {
-            (map_pos.y - state.player_pos.y + (1.0 - step.y) / 2.0) / ray_dir.y
-          };
-
-          let line_height = (rect.height() / perp_wall_dist) as i32;
-          let draw_start = (-line_height / 2 + (rect.height() / 2.0) as i32).max(0);
-          let draw_end = (line_height / 2 + (rect.height() / 2.0) as i32).min(rect.height() as i32);
-
-          let color = match tile {
-            WALL_TILE => if side == 0 {
-              Color32::from_rgb(160, 160, 160) // NS wall
-            } else {
-              Color32::from_rgb(140, 140, 140) // EW wall
-            },
-            DOOR_TILE => if side == 0 {
-              Color32::from_rgb(180, 120, 60)
-            } else {
-              Color32::from_rgb(150, 100, 50)
-            },
-            _ => Color32::TRANSPARENT
-          };
-
-          if color != Color32::TRANSPARENT {
-            painter.line_segment(
-              [
-                Pos2::new(x as f32, draw_start as f32),
-                Pos2::new(x as f32, draw_end as f32)
-              ],
-              Stroke::new(1.0, color)
-            );
+            if side == 0 { Color32::from_rgb(180, 180, 180) } else { Color32::from_rgb(160, 160, 160) }
           }
         },
-        _ => ()
+        _ => Color32::TRANSPARENT,
+      };
+
+      if color != Color32::TRANSPARENT {
+        painter.line_segment(
+          [Pos2::new(x as f32, draw_start as f32), Pos2::new(x as f32, draw_end as f32)],
+          Stroke::new(1.0, color)
+        );
       }
     }
   }
 }
 
 // ----------------------------- Game Logic ---------------------------------
+// These functions are based on the original Doom game logic modules.
 
 impl DoomState {
-  fn spawn_enemies(&mut self) {
-    let mut rng = thread_rng();
-    if Instant::now().duration_since(self.last_spawn_time) > Duration::from_secs(10)
-      && self.enemies.len() < 6 {
-
-      // Find valid spawn positions
-      let mut candidates = vec![];
-      for y in 1..self.map.len()-1 {
-        for x in 1..self.map[0].len()-1 {
-          if self.map[y][x] == EMPTY_TILE {
-            let pos = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
-            if vec2_distance(pos, self.player_pos) > 5.0 {
-              candidates.push((x, y));
-            }
-          }
-        }
-      }
-
-      if !candidates.is_empty() {
-        let (x, y) = candidates[rng.gen_range(0..candidates.len())];
-        let monster_type = match rng.gen_range(0..3) {
-          0 => MonsterType::Demon,
-          1 => MonsterType::Cacodemon,
-          _ => MonsterType::Imp,
-        };
-
-        self.enemies.push(Enemy {
-          pos: Vec2::new(x as f32 + 0.5, y as f32 + 0.5),
-          health: match monster_type {
-            MonsterType::Demon => 120.0,
-            MonsterType::Cacodemon => 80.0,
-            MonsterType::Imp => 60.0
-          },
-          last_attack: None,
-          monster_type,
-          animation_frame: 0.0,
-        });
-        self.last_spawn_time = Instant::now();
-      }
-    }
-  }
-
   fn update_animations(&mut self, dt: f32) {
     for enemy in &mut self.enemies {
       enemy.animation_frame += dt * 4.0;
     }
     self.trophy.glow_intensity += dt * 2.0;
 
-    // Update blood splatters
     self.blood_splatters = self.blood_splatters.iter()
       .filter(|(_, t)| *t < 5.0)
       .map(|(pos, t)| (*pos, t + dt))
       .collect();
-  }
-
-  fn try_open_door(&mut self) -> bool {
-    let front_pos = self.player_pos + self.player_dir * (PLAYER_RADIUS + 0.1);
-    let dx = front_pos.x.floor() as isize;
-    let dy = front_pos.y.floor() as isize;
-
-    if let Some(DOOR_TILE) = map_tile_at(&self.map, dx, dy) {
-      set_map_tile(&mut self.map, dx, dy, EMPTY_TILE);
-      true
-    } else {
-      false
-    }
   }
 
   fn fire_weapon(&mut self) -> bool {
@@ -455,8 +325,7 @@ impl DoomState {
     self.last_shot_time = Some(Instant::now());
     let mut hit_any = false;
 
-    // Find the closest visible enemy and apply damage to it.
-    if let Some(mut enemy_to_hit) = self.enemies.iter_mut()
+    if let Some(enemy_to_hit) = self.enemies.iter_mut()
       .filter(|enemy| is_visible(self.player_pos, self.player_dir, enemy.pos, &self.map))
       .min_by(|a, b| {
         vec2_distance(self.player_pos, a.pos)
@@ -464,21 +333,14 @@ impl DoomState {
           .unwrap_or(std::cmp::Ordering::Less)
       }) {
 
-      let dist = vec2_distance(enemy_to_hit.pos, self.player_pos);
-      if dist <= 4.0 {
-        let damage = match enemy_to_hit.monster_type {
-          MonsterType::Demon => 25.0,
-          MonsterType::Cacodemon => 35.0,
-          MonsterType::Imp => 40.0,
-        };
+      let damage = 100.0;
 
-        enemy_to_hit.health -= damage;
-        enemy_to_hit.last_attack = Some(Instant::now());
-        hit_any = true;
+      enemy_to_hit.health -= damage;
+      enemy_to_hit.last_attack = Some(Instant::now());
+      hit_any = true;
 
-        if enemy_to_hit.health <= 0.0 {
-          self.blood_splatters.push((enemy_to_hit.pos, 0.0));
-        }
+      if enemy_to_hit.health <= 0.0 {
+        self.blood_splatters.push((enemy_to_hit.pos, 0.0));
       }
     }
 
@@ -491,27 +353,20 @@ impl DoomState {
       let to_player = self.player_pos - enemy.pos;
       let dist = to_player.length();
 
-      // Movement
       if dist < 8.0 && dist > 1.5 {
         let move_speed = 0.8 * dt;
         let dir = to_player.normalized();
         let new_pos = enemy.pos + dir * move_speed;
 
-        // Improved collision detection for enemies
         if !check_collision(&self.map, new_pos, ENEMY_RADIUS) {
           enemy.pos = new_pos;
         }
       }
 
-      // Attack
       if dist < 1.5 {
         let now = Instant::now();
         if enemy.last_attack.map_or(true, |t| now.duration_since(t) > Duration::from_secs(1)) {
-          let damage = match enemy.monster_type {
-            MonsterType::Demon => 8.0,
-            MonsterType::Cacodemon => 5.0,
-            MonsterType::Imp => 3.0
-          };
+          let damage = 8.0;
 
           if self.armor > 0.0 {
             let armor_take = f32::min(damage * 0.5, self.armor);
@@ -532,19 +387,26 @@ impl DoomState {
     }
   }
 
-  fn check_trophy(&mut self) {
+  fn collect_items(&mut self) {
     let px = self.player_pos.x.floor() as isize;
     let py = self.player_pos.y.floor() as isize;
-    if let Some(TROPHY_TILE) = map_tile_at(&self.map, px, py) {
-      if !self.trophy.collected {
-        self.trophy.collected = true;
-        self.game_won = true;
+
+    if let Some(tile) = map_tile_at(&self.map, px, py) {
+      match tile {
+        TROPHY_TILE => {
+          if !self.trophy.collected {
+            self.trophy.collected = true;
+            self.game_won = true;
+          }
+        },
+        _ => {}
       }
     }
   }
 }
 
 // ----------------------------- Helper Functions --------------------------
+// These functions are analogous to the utility functions in Doom's original source.
 fn check_collision(map: &Vec<Vec<u8>>, pos: Vec2, radius: f32) -> bool {
   let (x, y) = (pos.x, pos.y);
   let (min_x, max_x) = ((x - radius).floor() as isize, (x + radius).floor() as isize);
@@ -553,7 +415,7 @@ fn check_collision(map: &Vec<Vec<u8>>, pos: Vec2, radius: f32) -> bool {
   for iy in min_y..=max_y {
     for ix in min_x..=max_x {
       if let Some(tile) = map_tile_at(map, ix, iy) {
-        if tile == WALL_TILE || tile == DOOR_TILE {
+        if tile == WALL_TILE || tile == TROPHY_TILE { // Collide with trophy tile
           return true;
         }
       }
@@ -610,7 +472,7 @@ fn is_visible(player_pos: Vec2, player_dir: Vec2, target_pos: Vec2, map: &Vec<Ve
     let check_pos = player_pos + to_target * t;
 
     if let Some(tile) = map_tile_at(map, check_pos.x.floor() as isize, check_pos.y.floor() as isize) {
-      if tile == WALL_TILE || tile == DOOR_TILE {
+      if tile == WALL_TILE || tile == TROPHY_TILE {
         return false;
       }
     }
@@ -656,16 +518,13 @@ pub fn draw_doom_screen(app: &mut MyApp, ctx: &egui::Context) {
   }
 
   egui::CentralPanel::default().show(ctx, |ui| {
-    // Cast dt to f32 once here to avoid multiple casts later
     let dt = ui.input(|i| i.unstable_dt) as f32;
     let rect = ui.available_rect_before_wrap();
     let painter = ui.painter();
 
-    // Moved these lines out of the closure to fix the borrowing error.
     let player_dir = app.doom_state.player_dir;
     let camera_plane = app.doom_state.camera_plane;
 
-    // Handle input first to ensure state is up-to-date
     let move_speed = 0.05;
     let rot_speed = 0.03;
     ui.input(|i| {
@@ -683,40 +542,30 @@ pub fn draw_doom_screen(app: &mut MyApp, ctx: &egui::Context) {
         app.doom_state.player_dir = rotate_vec(player_dir, -rot_speed);
         app.doom_state.camera_plane = rotate_vec(camera_plane, -rot_speed);
       }
-      if i.key_pressed(Key::F) {
-        app.doom_state.try_open_door();
-      }
       if i.key_pressed(Key::Space) {
         app.doom_state.fire_weapon();
       }
     });
 
-    // Update game state with the latest `dt`
-    app.doom_state.spawn_enemies();
     app.doom_state.update_animations(dt);
     app.doom_state.update_enemies(dt);
-    app.doom_state.check_trophy();
+    app.doom_state.collect_items();
 
-    // Get the most up-to-date state variables for rendering
     let player_pos = app.doom_state.player_pos;
     let player_dir = app.doom_state.player_dir;
     let camera_plane = app.doom_state.camera_plane;
 
-    // Rendering
     draw_background(painter, rect);
     draw_walls(painter, rect, &app.doom_state);
 
-    // Collect and sort all visible sprites (enemies and trophy) by distance
     let mut sprites_to_draw = Vec::new();
 
-    // Enemies
     for enemy in &app.doom_state.enemies {
       let dist = vec2_distance(player_pos, enemy.pos);
       if is_visible(player_pos, player_dir, enemy.pos, &app.doom_state.map) {
         sprites_to_draw.push(("enemy", dist, enemy.pos));
       }
     }
-    // Trophy
     if !app.doom_state.trophy.collected {
       let dist = vec2_distance(player_pos, app.doom_state.trophy.pos);
       if is_visible(player_pos, player_dir, app.doom_state.trophy.pos, &app.doom_state.map) {
@@ -724,10 +573,8 @@ pub fn draw_doom_screen(app: &mut MyApp, ctx: &egui::Context) {
       }
     }
 
-    // Sort sprites from farthest to nearest
     sprites_to_draw.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Less));
 
-    // Draw sprites
     for (sprite_type, _dist, pos) in sprites_to_draw {
       if let Some((screen_pos, size_scale)) = world_to_screen(player_pos, rect, pos, player_dir, camera_plane) {
         match sprite_type {
@@ -746,23 +593,9 @@ pub fn draw_doom_screen(app: &mut MyApp, ctx: &egui::Context) {
       }
     }
 
-    // Draw blood splatters
-    for (pos, timer) in &app.doom_state.blood_splatters {
-      if let Some((screen_pos, size_scale)) = world_to_screen(player_pos, rect, *pos, player_dir, camera_plane) {
-        let alpha = (1.0 - timer / 5.0).max(0.0);
-        let size = (size_scale * 0.5).min(50.0);
-        painter.circle_filled(
-          screen_pos,
-          size * (1.0 + timer / 5.0),
-          Color32::from_rgba_unmultiplied(150, 0, 0, (alpha * 150.0) as u8)
-        );
-      }
-    }
-
-    // Draw weapon
+    draw_blood_splatters(painter, rect, &app.doom_state);
     draw_player_weapon(painter, rect, &app.doom_state);
-
-    // Draw HUD
+    draw_crosshair(painter, rect);
     draw_minimap(painter, rect, &app.doom_state);
     draw_hud(ui, &app.doom_state);
   });
@@ -798,7 +631,6 @@ fn draw_player_weapon(painter: &egui::Painter, rect: Rect, state: &DoomState) {
 }
 
 fn draw_trophy(painter: &egui::Painter, pos: Pos2, size_scale: f32) {
-  // Fix: Correctly use size_scale for proportional scaling
   let size = (size_scale * 0.3).min(100.0);
   let center = Pos2::new(pos.x, pos.y);
 
@@ -812,6 +644,34 @@ fn draw_trophy(painter: &egui::Painter, pos: Pos2, size_scale: f32) {
     Color32::from_rgb(150, 150, 150)
   );
 }
+
+fn draw_crosshair(painter: &egui::Painter, rect: Rect) {
+  let crosshair_pos = rect.center();
+  let crosshair_size = 8.0;
+  painter.line_segment(
+    [Pos2::new(crosshair_pos.x - crosshair_size, crosshair_pos.y),
+      Pos2::new(crosshair_pos.x + crosshair_size, crosshair_pos.y)],
+    Stroke::new(2.0, Color32::RED));
+  painter.line_segment(
+    [Pos2::new(crosshair_pos.x, crosshair_pos.y - crosshair_size),
+      Pos2::new(crosshair_pos.x, crosshair_pos.y + crosshair_size)],
+    Stroke::new(2.0, Color32::RED));
+}
+
+fn draw_blood_splatters(painter: &egui::Painter, rect: Rect, state: &DoomState) {
+  for (pos, timer) in &state.blood_splatters {
+    if let Some((screen_pos, size_scale)) = world_to_screen(state.player_pos, rect, *pos, state.player_dir, state.camera_plane) {
+      let alpha = (1.0 - timer / 5.0).max(0.0);
+      let size = (size_scale * 0.5).min(50.0);
+      painter.circle_filled(
+        screen_pos,
+        size * (1.0 + timer / 5.0),
+        Color32::from_rgba_unmultiplied(150, 0, 0, (alpha * 150.0) as u8)
+      );
+    }
+  }
+}
+
 
 fn draw_minimap(painter: &egui::Painter, rect: Rect, state: &DoomState) {
   let size = 180.0;
@@ -836,7 +696,6 @@ fn draw_minimap(painter: &egui::Painter, rect: Rect, state: &DoomState) {
 
       let color = match state.map[y][x] {
         WALL_TILE => Color32::from_rgb(120, 120, 120),
-        DOOR_TILE => Color32::from_rgb(150, 100, 50),
         TROPHY_TILE => Color32::GOLD,
         _ => continue
       };
@@ -914,22 +773,33 @@ fn draw_victory_screen(state: &mut DoomState, ctx: &egui::Context) {
 
 impl Default for DoomState {
   fn default() -> Self {
-    let map = generate_dungeon();
+    let mut map = generate_static_dungeon();
 
-    let mut player_pos = Vec2::ZERO;
-    let mut trophy_pos = Vec2::ZERO;
+    let mut player_pos = Vec2::new(1.5, 1.5);
+    let trophy_pos = Vec2::new((MAP_WIDTH - 2) as f32 + 0.5, (MAP_HEIGHT - 2) as f32 + 0.5);
 
-    let mut empty_positions: Vec<(usize, usize)> = map.iter().enumerate()
-      .flat_map(|(y, row)| row.iter().enumerate().filter(|(_, &tile)| tile == EMPTY_TILE).map(move |(x, _)| (x, y)))
+    let mut enemies = Vec::new();
+    let mut rng = thread_rng();
+
+    // Spawn 20 enemies randomly, avoiding the start and end tiles
+    let mut empty_positions: Vec<(usize, usize)> = (0..MAP_HEIGHT)
+      .flat_map(|y| (0..MAP_WIDTH).map(move |x| (x, y)))
+      .filter(|(x, y)| map[*y][*x] == EMPTY_TILE && (*x, *y) != (1,1) && (*x, *y) != (MAP_WIDTH-2, MAP_HEIGHT-2))
       .collect();
+    empty_positions.shuffle(&mut rng);
 
-    empty_positions.shuffle(&mut thread_rng());
+    for _ in 0..20 {
+      if let Some((x, y)) = empty_positions.pop() {
+        let monster_type = MonsterType::Demon;
 
-    if let Some((x, y)) = empty_positions.pop() {
-      player_pos = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
-    }
-    if let Some((x, y)) = empty_positions.pop() {
-      trophy_pos = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
+        enemies.push(Enemy {
+          pos: Vec2::new(x as f32 + 0.5, y as f32 + 0.5),
+          health: 120.0,
+          last_attack: None,
+          monster_type,
+          animation_frame: 0.0,
+        });
+      }
     }
 
     DoomState {
@@ -939,7 +809,7 @@ impl Default for DoomState {
       player_pos,
       player_dir: Vec2::new(-1.0, 0.0),
       camera_plane: Vec2::new(0.0, 0.66),
-      enemies: Vec::new(),
+      enemies,
       map,
       trophy: Trophy {
         pos: trophy_pos,
@@ -949,7 +819,6 @@ impl Default for DoomState {
       game_over: false,
       game_won: false,
       blood_splatters: Vec::new(),
-      last_spawn_time: Instant::now(),
       last_shot_time: None,
     }
   }
