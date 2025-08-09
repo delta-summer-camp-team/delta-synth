@@ -1,0 +1,37 @@
+// use basic_reverb::MonoBasicReverb;
+// use std::path::Path;
+// // wavers is not included on basic-reverb
+// use wavers::{write, Wav};
+
+// fn main() {
+//     let fp: &Path = &Path::new("path/to/the/input.wav");
+//     let out_fp: &Path = &Path::new("path/to/the/output.wav");
+
+//     let mut wav: Wav<f32> = Wav::from_path(fp).unwrap();
+//     let input_samples: &mut [f32] = &mut wav.read().unwrap();
+//     let sample_rate = wav.sample_rate();
+//     // to simplify, just mono audio
+//     let n_channels = 1;
+
+//     let room_size_ms = 100.;
+//     let rt60 = 10.;
+//     let dry = 0.;
+//     let wet = 1.;
+
+//     // a fixed sample rate is used to improve performance
+//     const SAMPLE_RATE: u32 = 44100;
+
+//     // should be a power of 2
+//     const CHANNELS: usize = 8;
+
+//     let mut basic_reverb: MonoBasicReverb<CHANNELS, SAMPLE_RATE> =
+//         MonoBasicReverb::new(room_size_ms, rt60, dry, wet);
+
+//     for i in 0..input_samples.len() {
+//         let input_sample = input_samples[i];
+//         let output_sample = basic_reverb.process_sample(input_sample as f64);
+//         input_samples[i] = output_sample as f32;
+//     }
+
+//     write(out_fp, input_samples, sample_rate, n_channels).unwrap();
+// }
