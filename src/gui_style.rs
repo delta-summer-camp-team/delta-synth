@@ -1,5 +1,5 @@
 // src/gui_style.rs
-use eframe::egui::{Color32, Stroke, Visuals};
+use eframe::egui::{Visuals};
 
 
 use crate::styles::{dark_style, diagnostics_style, orange_style, turquoise_style, anton_style, doom_style};
@@ -9,7 +9,7 @@ pub enum GUIStyle {
   OrangeMode,
   DarkMode,
   TurquoiseMode,
-  Diagnostics,
+  _Diagnostics,
   AntonMode,
   DoomMode,
 }
@@ -20,7 +20,7 @@ impl GUIStyle {
       GUIStyle::OrangeMode => orange_style::orange_mode_visuals(),
       GUIStyle::DarkMode => dark_style::dark_mode_visuals(),
       GUIStyle::TurquoiseMode => turquoise_style::turquoise_mode_visuals(),
-      GUIStyle::Diagnostics => diagnostics_style::diagnostics_mode_visuals(),
+      GUIStyle::_Diagnostics => diagnostics_style::diagnostics_mode_visuals(),
       GUIStyle::AntonMode => anton_style::anton_mode_visuals(),
       GUIStyle::DoomMode => doom_style::doom_mode_visuals(),
     }

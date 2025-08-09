@@ -6,7 +6,7 @@
 use crate::app::MyApp;
 use eframe::egui::{self, Color32, Key, Pos2, Rect, Stroke, Vec2};
 use std::time::{Duration, Instant};
-use rand::{Rng, thread_rng};
+use rand::{Rng, rng};
 use std::f32::consts::PI;
 use rand::seq::SliceRandom;
 
@@ -74,7 +74,7 @@ pub struct DoomState {
 // This function creates a large, detailed static map.
 fn generate_static_dungeon() -> Vec<Vec<u8>> {
   let mut map = vec![vec![WALL_TILE; MAP_WIDTH]; MAP_HEIGHT];
-  let mut rng = thread_rng();
+  let mut rng = rng();
 
   // Fill with empty space
   for y in 1..MAP_HEIGHT - 1 {
@@ -85,17 +85,17 @@ fn generate_static_dungeon() -> Vec<Vec<u8>> {
 
   // Generate a labyrinth by placing random walls
   for _ in 0..6000 {
-    let x = rng.gen_range(1..MAP_WIDTH - 1);
-    let y = rng.gen_range(1..MAP_HEIGHT - 1);
+    let x = rng.random_range(1..MAP_WIDTH - 1);
+    let y = rng.random_range(1..MAP_HEIGHT - 1);
     map[y][x] = WALL_TILE;
   }
 
   // Create random, open corridors to make a navigable maze
   for _ in 0..1500 {
-    let start_x = rng.gen_range(1..MAP_WIDTH - 1);
-    let start_y = rng.gen_range(1..MAP_HEIGHT - 1);
-    let len = rng.gen_range(3..10);
-    let dir = rng.gen_range(0..4);
+    let start_x = rng.random_range(1..MAP_WIDTH - 1);
+    let start_y = rng.random_range(1..MAP_HEIGHT - 1);
+    let len = rng.random_range(3..10);
+    let dir = rng.random_range(0..4);
 
     for i in 0..len {
       match dir {
@@ -244,6 +244,7 @@ fn draw_walls(painter: &egui::Painter, rect: Rect, state: &DoomState) {
     let mut side = 0;
     let mut perp_wall_dist = 0.0;
     let mut current_tile_type = WALL_TILE;
+    let _ = perp_wall_dist;
 
     while !hit {
       if side_dist.x < side_dist.y {
@@ -518,7 +519,7 @@ pub fn draw_doom_screen(app: &mut MyApp, ctx: &egui::Context) {
   }
 
   egui::CentralPanel::default().show(ctx, |ui| {
-    let dt = ui.input(|i| i.unstable_dt) as f32;
+    let dt = ui.input(|i| i.unstable_dt);
     let rect = ui.available_rect_before_wrap();
     let painter = ui.painter();
 
@@ -779,7 +780,7 @@ impl Default for DoomState {
     let trophy_pos = Vec2::new((MAP_WIDTH - 2) as f32 + 0.5, (MAP_HEIGHT - 2) as f32 + 0.5);
 
     let mut enemies = Vec::new();
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     // Spawn 20 enemies randomly, avoiding the start and end tiles
     let mut empty_positions: Vec<(usize, usize)> = (0..MAP_HEIGHT)
