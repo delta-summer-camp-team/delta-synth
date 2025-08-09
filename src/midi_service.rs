@@ -8,7 +8,7 @@ use midir::{Ignore, MidiInput, MidiInputConnection};
 
 use crate::synth_state::SynthState;
 
-pub fn midi_service(synth_state: Arc<SynthState>) -> Result<MidiInputConnection<()>, Box<dyn Error>> {
+pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInputConnection<()>, Box<dyn Error>> {
   let mut input = String::new();
 
   let mut midi_in = MidiInput::new("midir reading input")?;
