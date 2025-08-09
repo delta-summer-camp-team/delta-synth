@@ -3,11 +3,10 @@ use crate::gui_style::GUIStyle;
 use crate::keyboard::Keyboard;
 use eframe::egui;
 use eframe::egui::{
-  Button, Color32, Image, Label, Pos2, Rect, Response, RichText, Sense, Shape, Stroke, TextStyle,
+  Button, Color32, Label, Pos2, Rect, Response, RichText, Sense, Shape, TextStyle,
   TextureHandle, Ui, Vec2, Widget,
 };
 use midir::{MidiInput, MidiOutput, MidiOutputConnection};
-use std::io::{stdin, stdout, Write};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use crate::doom_mode::DoomState;
 
@@ -128,7 +127,7 @@ pub mod rotary_knob {
         let font = TextStyle::Small.resolve(ui.style());
         painter.text(
           center,
-          eframe::egui::Align2::CENTER_CENTER,
+          egui::Align2::CENTER_CENTER,
           val_str,
           font,
           visuals.text_color(),
@@ -490,7 +489,7 @@ impl MyApp {
     }
   }
 
-  pub fn styled_button(&self, ui: &mut egui::Ui, text: &str, pressed: bool) -> egui::Response {
+  pub fn styled_button(&self, ui: &mut Ui, text: &str, pressed: bool) -> Response {
     let visuals = self.current_style.get_visuals();
     let (fill_color, text_color) = if pressed {
       (visuals.widgets.active.bg_fill, visuals.override_text_color.unwrap_or(Color32::BLACK))
