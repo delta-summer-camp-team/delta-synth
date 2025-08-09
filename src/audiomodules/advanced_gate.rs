@@ -1,4 +1,6 @@
-use crate::Ordering;
+use std::sync::Arc;
+
+use crate::{synth_state, Ordering};
 use crate::audiomodules::AudioModule;
 use crate::synth_state::SynthState;
 const DT: f32 = 1.0/44100.0;
@@ -20,12 +22,22 @@ pub struct AdvGate {
 
     envelop: f32,
     gate_state: GateState,
-    synth_state: SynthState,
+    synth_state: Arc<SynthState>,
     
 }
 
 impl AdvGate {
-    
+    fn new (attack: u8, decay: u8, sustain: u8, release: u8, envelop: f32, gate_state: GateState, synth_state: Arc<SynthState>) -> Self {
+        Self {
+            attack,
+            decay,
+            sustain,
+            release,
+            envelop,
+            gate_state,
+            synth_state, 
+        }
+    }
     
     fn get_envelop(&self) -> f32 {                              //GET ENVELOP
         return self.envelop
@@ -83,7 +95,7 @@ impl AudioModule for AdvGate {
 
         for sample in output.iter_mut() { 
             self.update_envelop();
-            *sample = self.get_envelop()
-            }
+            *sample = self.get_envelop() // *=
+         }
     }
 }
