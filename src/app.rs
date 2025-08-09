@@ -1,14 +1,14 @@
 // src/app.rs
+use crate::doom_mode::DoomState;
 use crate::gui_style::GUIStyle;
 use crate::keyboard::Keyboard;
 use eframe::egui;
 use eframe::egui::{
-  Button, Color32, Label, Pos2, Rect, Response, RichText, Sense, Shape, TextStyle,
-  TextureHandle, Ui, Vec2, Widget,
+  Button, Color32, Label, Pos2, Rect, Response, RichText, Sense, Shape, TextStyle, TextureHandle,
+  Ui, Vec2, Widget,
 };
 use midir::{MidiInput, MidiOutput, MidiOutputConnection};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use crate::doom_mode::DoomState;
 
 // --- AppState Enum ---
 // Manages the current view of the application.
@@ -123,7 +123,7 @@ pub mod rotary_knob {
 
       // Draw the numeric value inside the knob
       if show_value {
-        let val_str = format!("{:.0}", *value);
+        let val_str = format!("{:.0}", *value * 100.0); // Show as percentage
         let font = TextStyle::Small.resolve(ui.style());
         painter.text(
           center,
@@ -152,9 +152,8 @@ use rotary_knob::RotaryKnob;
 
 // --- Main Application Struct ---
 pub struct MyApp {
-  pub knob1: f32,
-  pub knob2: f32,
-  pub slider_vals: [f32; 4],
+  pub knobs: [f32; 20],
+  pub sliders: [f32; 20],
   pub midi_out: Option<MidiOutputConnection>,
   pub midi_in: Option<midir::MidiInputConnection<()>>,
   pub midi_status: String,
@@ -176,9 +175,8 @@ impl Default for MyApp {
   fn default() -> Self {
     let (midi_tx, midi_rx) = channel();
     Self {
-      knob1: 0.0,
-      knob2: 0.0,
-      slider_vals: [0.0; 4],
+      knobs: [0.0; 20],
+      sliders: [0.0; 20],
       midi_out: None,
       midi_in: None,
       midi_status: "Initializing MIDI...".to_string(),
@@ -244,7 +242,8 @@ impl MyApp {
         )
         .unwrap();
       self.midi_in = Some(conn_in);
-      self.midi_status = format!("{} ✅ Connected to MIDI In: {}", self.midi_status, port_name);
+      self.midi_status =
+        format!("{} ✅ Connected to MIDI In: {}", self.midi_status, port_name);
     }
   }
 
@@ -262,7 +261,9 @@ impl MyApp {
       ui.vertical_centered(|ui| {
         ui.add_space(ui.available_height() * 0.1);
         if let Some(texture) = &self.logo_texture {
-          let img = egui::Image::new(texture);
+          let img = egui::Image::new(egui::ImageSource::Texture(
+            egui::load::SizedTexture::new(texture.id(), texture.size_vec2()),
+          ));
           let sized_img = img.fit_to_exact_size(Vec2::new(1000.0, 200.0));
           ui.add(sized_img);
         }
@@ -270,32 +271,58 @@ impl MyApp {
         ui.heading("Choose a Style");
         ui.add_space(20.0);
 
-        if ui.add(Button::new("Orange Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
+        if ui
+          .add(Button::new("Orange Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0))
+          .clicked()
+        {
           self.current_style = GUIStyle::OrangeMode;
           self.app_state = AppState::MainApp;
         }
         ui.add_space(10.0);
-        if ui.add(Button::new("Dark Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
+        if ui
+          .add(Button::new("Dark Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0))
+          .clicked()
+        {
           self.current_style = GUIStyle::DarkMode;
           self.app_state = AppState::MainApp;
         }
         ui.add_space(10.0);
-        if ui.add(Button::new("Turquoise Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
+        if ui
+          .add(
+            Button::new("Turquoise Mode")
+              .min_size(Vec2::new(200.0, 50.0))
+              .rounding(10.0),
+          )
+          .clicked()
+        {
           self.current_style = GUIStyle::TurquoiseMode;
           self.app_state = AppState::MainApp;
         }
         ui.add_space(10.0);
-        if ui.add(Button::new("Anton Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
+        if ui
+          .add(Button::new("Anton Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0))
+          .clicked()
+        {
           self.current_style = GUIStyle::AntonMode;
           self.app_state = AppState::MainApp;
         }
         ui.add_space(10.0);
-        if ui.add(Button::new("Doom Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
+        if ui
+          .add(Button::new("Doom Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0))
+          .clicked()
+        {
           self.current_style = GUIStyle::DoomMode;
           self.app_state = AppState::DoomMode;
         }
         ui.add_space(10.0);
-        if ui.add(Button::new("Diagnostics").min_size(Vec2::new(200.0, 50.0)).rounding(10.0)).clicked() {
+        if ui
+          .add(
+            Button::new("Diagnostics")
+              .min_size(Vec2::new(200.0, 50.0))
+              .rounding(10.0),
+          )
+          .clicked()
+        {
           self.app_state = AppState::Diagnostics;
         }
       });
@@ -304,100 +331,154 @@ impl MyApp {
 
   fn draw_main_app(&mut self, ctx: &egui::Context) {
     let mut cc_to_send: Vec<(u8, f32)> = Vec::new();
+
     egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
       ui.horizontal(|ui| {
         if ui.button("↩ Back").clicked() {
           self.app_state = AppState::StartScreen;
         }
-        ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-          if ui.button("Toggle Fullscreen").clicked() {
-            self.is_fullscreen = !self.is_fullscreen;
-            ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
-          }
-          if let Some(texture) = &self.logo_texture {
-            let img = egui::Image::new(texture);
-            let sized_img = img.fit_to_exact_size(Vec2::new(1000.0, 200.0));
-            ui.add(sized_img);
-          }
-          ui.label(&self.midi_status);
-        });
-      });
-      ui.add_space(50.0);
-      ui.columns(3, |columns| {
-        columns[0].with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-          let mut knob = RotaryKnob::new(&mut self.knob1, 0.0, 1.0)
-            .with_label("CUTOFF")
-            .with_size(200.0)
-            .show_value(true);
-          if self.current_style == GUIStyle::AntonMode {
-            if let Some(texture) = &self.antonui_texture {
-              knob = knob.with_texture(texture);
-            }
-          }
-          if ui.add(knob).changed() {
-            cc_to_send.push((10, self.knob1));
-          }
-        });
-        columns[2].with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-          let mut knob = RotaryKnob::new(&mut self.knob2, 0.0, 1.0)
-            .with_label("RESONANCE")
-            .with_size(200.0)
-            .show_value(true);
-          if self.current_style == GUIStyle::AntonMode {
-            if let Some(texture) = &self.antonui_texture {
-              knob = knob.with_texture(texture);
-            }
-          }
-          if ui.add(knob).changed() {
-            cc_to_send.push((11, self.knob2));
-          }
-        });
+        ui.label(&self.midi_status);
+        if ui.button("Toggle Fullscreen").clicked() {
+          self.is_fullscreen = !self.is_fullscreen;
+          ctx.send_viewport_cmd(egui::ViewportCommand::Fullscreen(self.is_fullscreen));
+        }
       });
     });
 
-    egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-      ui.add_space(10.0);
-      ui.columns(3, |columns| {
-        columns[0].vertical_centered(|ui| {
-          if self.styled_button(ui, "BUTTON 1", self.button1_pressed).clicked() {
-            self.button1_pressed = !self.button1_pressed;
-            let value_to_send = if self.button1_pressed { 1.0 } else { 0.0 };
-            cc_to_send.push((20, value_to_send));
-          }
-          ui.add_space(5.0);
-          if self.styled_button(ui, "BUTTON 2", false).clicked() {
-            cc_to_send.push((21, 1.0));
+    egui::CentralPanel::default().show(ctx, |ui| {
+      ui.horizontal(|ui| {
+        // --- Column 1 ---
+        ui.vertical(|ui| {
+          for i in 0..4 {
+            if ui
+              .add(
+                RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
+                  .with_label(&format!("K{}", i + 1))
+                  .with_size(150.0),
+              )
+              .changed()
+            {
+              cc_to_send.push((i as u8, self.knobs[i]));
+            }
+            ui.add_space(10.0);
           }
         });
-        columns[1].vertical_centered(|ui| {
-          egui::ScrollArea::horizontal().auto_shrink([false; 2]).show(ui, |ui| {
+
+        // --- Column 2 ---
+        ui.vertical(|ui| {
+          for i in 0..4 {
             ui.horizontal(|ui| {
-              for (i, val) in self.slider_vals.iter_mut().enumerate() {
+              for j in 0..2 {
+                let slider_index = i * 2 + j;
                 ui.vertical(|ui| {
-                  ui.label(format!("S{}", i + 1));
-                  let slider = egui::Slider::new(val, -0.5..=0.5).vertical().text("");
-                  if ui.add_sized([200.0, 1000.0], slider).changed() {
-                    cc_to_send.push((1 + i as u8, *val + 0.5));
+                  ui.label(format!("Slider {}", slider_index + 1));
+                  let slider = egui::Slider::new(&mut self.sliders[slider_index], 0.0..=1.0)
+                    .vertical();
+                  if ui.add_sized(Vec2::new(20.0, 120.0), slider).changed() {
+                    cc_to_send.push((20 + slider_index as u8, self.sliders[slider_index]));
                   }
                 });
-                ui.add_space(15.0);
               }
             });
-          });
-        });
-        columns[2].vertical_centered(|ui| {
-          if self.styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
-            self.button3_pressed = !self.button3_pressed;
-            let value_to_send = if self.button3_pressed { 1.0 } else { 0.0 };
-            cc_to_send.push((22, value_to_send));
+            ui.add_space(40.0); // Spacing to align with knobs
           }
-          ui.add_space(5.0);
-          if self.styled_button(ui, "BUTTON 4", false).clicked() {
-            cc_to_send.push((23, 1.0));
+        });
+
+        // --- Column 3 ---
+        ui.vertical_centered(|ui| {
+          if let Some(texture) = &self.logo_texture {
+            ui.image(egui::ImageSource::Texture(
+              egui::load::SizedTexture::new(texture.id(), texture.size_vec2() / 4.0),
+            ));
+          }
+          ui.add_space(20.0);
+          ui.label("Slider 9");
+          let slider = egui::Slider::new(&mut self.sliders[8], 0.0..=1.0);
+          if ui.add_sized(Vec2::new(200.0, 20.0), slider).changed() {
+            cc_to_send.push((28, self.sliders[8]));
+          }
+          ui.add_space(20.0);
+          for i in 4..6 {
+            if ui
+              .add(
+                RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
+                  .with_label(&format!("K{}", i + 1))
+                  .with_size(150.0),
+              )
+              .changed()
+            {
+              cc_to_send.push((i as u8, self.knobs[i]));
+            }
+            ui.add_space(10.0);
+          }
+        });
+
+        // --- Column 4 ---
+        ui.vertical(|ui| {
+          ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.set_height(ui.available_height() / 3.0);
+            for i in 9..11 {
+              ui.label(format!("Slider {}", i + 1));
+              let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
+              if ui.add_sized(Vec2::new(150.0, 20.0), slider).changed() {
+                cc_to_send.push((20 + i as u8, self.sliders[i]));
+              }
+            }
+          });
+          for i in 6..8 {
+            if ui
+              .add(
+                RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
+                  .with_label(&format!("K{}", i + 1))
+                  .with_size(150.0),
+              )
+              .changed()
+            {
+              cc_to_send.push((i as u8, self.knobs[i]));
+            }
+            ui.add_space(10.0);
+          }
+        });
+
+        // --- Column 5 ---
+        ui.vertical(|ui| {
+          ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
+            ui.set_height(ui.available_height() / 3.0);
+            ui.horizontal(|ui| {
+              for i in 8..10 {
+                if ui
+                  .add(
+                    RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
+                      .with_label(&format!("K{}", i + 1))
+                      .with_size(150.0),
+                  )
+                  .changed()
+                {
+                  cc_to_send.push((i as u8, self.knobs[i]));
+                }
+              }
+            });
+            ui.label("Slider 12");
+            let slider = egui::Slider::new(&mut self.sliders[11], 0.0..=1.0);
+            if ui.add_sized(Vec2::new(150.0, 20.0), slider).changed() {
+              cc_to_send.push((31, self.sliders[11]));
+            }
+          });
+          for i in 10..12 {
+            if ui
+              .add(
+                RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
+                  .with_label(&format!("K{}", i + 1))
+                  .with_size(150.0),
+              )
+              .changed()
+            {
+              cc_to_send.push((i as u8, self.knobs[i]));
+            }
+            ui.add_space(10.0);
           }
         });
       });
-      ui.add_space(10.0);
     });
 
     for (controller, value) in cc_to_send {
@@ -425,15 +506,31 @@ impl MyApp {
           ui.add_space(5.0);
         });
         ui.add_space(50.0);
-        ui.columns(3, |columns| {
+        ui.columns(2, |columns| {
           columns[0].with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.add(RotaryKnob::new(&mut self.knob1, 0.0, 1.0).with_label("CUTOFF").with_size(200.0).show_value(true)).changed() {
-              cc_to_send.push((10, self.knob1));
+            if ui
+              .add(
+                RotaryKnob::new(&mut self.knobs[0], 0.0, 1.0)
+                  .with_label("CUTOFF")
+                  .with_size(200.0)
+                  .show_value(true),
+              )
+              .changed()
+            {
+              cc_to_send.push((10, self.knobs[0]));
             }
           });
-          columns[2].with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-            if ui.add(RotaryKnob::new(&mut self.knob2, 0.0, 1.0).with_label("RESONANCE").with_size(200.0).show_value(true)).changed() {
-              cc_to_send.push((11, self.knob2));
+          columns[1].with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
+            if ui
+              .add(
+                RotaryKnob::new(&mut self.knobs[1], 0.0, 1.0)
+                  .with_label("RESONANCE")
+                  .with_size(200.0)
+                  .show_value(true),
+              )
+              .changed()
+            {
+              cc_to_send.push((11, self.knobs[1]));
             }
           });
         });
@@ -443,7 +540,10 @@ impl MyApp {
       ui.add_space(10.0);
       ui.columns(3, |columns| {
         columns[0].vertical_centered(|ui| {
-          if self.styled_button(ui, "BUTTON 1", self.button1_pressed).clicked() {
+          if self
+            .styled_button(ui, "BUTTON 1", self.button1_pressed)
+            .clicked()
+          {
             self.button1_pressed = !self.button1_pressed;
             let value_to_send = if self.button1_pressed { 1.0 } else { 0.0 };
             cc_to_send.push((20, value_to_send));
@@ -454,23 +554,29 @@ impl MyApp {
           }
         });
         columns[1].vertical_centered(|ui| {
-          egui::ScrollArea::horizontal().auto_shrink([false; 2]).show(ui, |ui| {
-            ui.horizontal(|ui| {
-              for (i, val) in self.slider_vals.iter_mut().enumerate() {
-                ui.vertical(|ui| {
-                  ui.label(format!("S{}", i + 1));
-                  let slider = egui::Slider::new(val, -0.5..=0.5).vertical().text("");
-                  if ui.add_sized([200.0, 1000.0], slider).changed() {
-                    cc_to_send.push((1 + i as u8, *val + 0.5));
-                  }
-                });
-                ui.add_space(15.0);
-              }
+          egui::ScrollArea::horizontal()
+            .auto_shrink([false; 2])
+            .show(ui, |ui| {
+              ui.horizontal(|ui| {
+                for (i, val) in self.sliders.iter_mut().take(4).enumerate() {
+                  ui.vertical(|ui| {
+                    ui.label(format!("S{}", i + 1));
+                    let slider =
+                      egui::Slider::new(val, -0.5..=0.5).vertical().text("");
+                    if ui.add_sized([200.0, 1000.0], slider).changed() {
+                      cc_to_send.push((1 + i as u8, *val + 0.5));
+                    }
+                  });
+                  ui.add_space(15.0);
+                }
+              });
             });
-          });
         });
         columns[2].vertical_centered(|ui| {
-          if self.styled_button(ui, "BUTTON 3", self.button3_pressed).clicked() {
+          if self
+            .styled_button(ui, "BUTTON 3", self.button3_pressed)
+            .clicked()
+          {
             self.button3_pressed = !self.button3_pressed;
             let value_to_send = if self.button3_pressed { 1.0 } else { 0.0 };
             cc_to_send.push((22, value_to_send));
@@ -492,9 +598,15 @@ impl MyApp {
   pub fn styled_button(&self, ui: &mut Ui, text: &str, pressed: bool) -> Response {
     let visuals = self.current_style.get_visuals();
     let (fill_color, text_color) = if pressed {
-      (visuals.widgets.active.bg_fill, visuals.override_text_color.unwrap_or(Color32::BLACK))
+      (
+        visuals.widgets.active.bg_fill,
+        visuals.override_text_color.unwrap_or(Color32::BLACK),
+      )
     } else {
-      (visuals.widgets.inactive.bg_fill, visuals.override_text_color.unwrap_or(Color32::BLACK))
+      (
+        visuals.widgets.inactive.bg_fill,
+        visuals.override_text_color.unwrap_or(Color32::BLACK),
+      )
     };
 
     ui.add(
@@ -539,7 +651,8 @@ impl eframe::App for MyApp {
       let image_buffer = image.to_rgba8();
       let pixels = image_buffer.as_flat_samples();
       let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-      self.antonui_texture = Some(ctx.load_texture("antonui", color_image, Default::default()));
+      self.antonui_texture =
+        Some(ctx.load_texture("antonui", color_image, Default::default()));
     }
 
     // Set the visuals for the entire application
@@ -563,8 +676,12 @@ pub fn run() -> Result<(), eframe::Error> {
   let mut app = MyApp::default();
   app.setup_midi();
   let options = eframe::NativeOptions {
-    viewport: egui::ViewportBuilder::default(),
+    viewport: egui::ViewportBuilder::default().with_resizable(false), // Make window non-resizable
     ..Default::default()
   };
-  eframe::run_native("Rust Synthesizer", options, Box::new(|_cc| Box::new(app)))
+  eframe::run_native(
+    "Rust Synthesizer",
+    options,
+    Box::new(|_cc| Box::new(app)),
+  )
 }
