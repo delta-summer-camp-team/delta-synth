@@ -2,7 +2,7 @@ mod audiomodules;
 
 use audiomodules::AudioModule;
 use audiomodules::oscillator::Oscillator;
-use std::sync::{Arc, Mutex, atomic::{Ordering},};
+use std::sync::{Arc, Mutex};
 use crate::audiomodules::oscillator::Waveforma;
 
 use cpal::traits::{DeviceTrait, HostTrait};
