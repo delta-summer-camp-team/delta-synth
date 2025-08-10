@@ -87,10 +87,10 @@ impl AudioModule for Chorus {
 
       // 3) output = dry*(1-mix) + wet*mix
       let wet = delayed;
-      *sample = (1.0 - self.mix) * sample + self.mix * wet;
+      *sample = (1.0 - self.mix) * *sample + self.mix * wet;
 
       // 4) push input + feedback*delayed into buffer (feedback)
-      let to_write = input + delayed * self.feedback;
+      let to_write = *sample + delayed * self.feedback;
       self.push_to_buffer(to_write);
 
       // 5) advance LFO
