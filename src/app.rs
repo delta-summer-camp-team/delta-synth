@@ -346,81 +346,76 @@ impl MyApp {
     });
 
     egui::CentralPanel::default().show(ctx, |ui| {
-      ui.horizontal(|ui| {
+      // Use columns to create a 5-column layout
+      ui.columns(5, |columns| {
         // --- Column 1 ---
-        ui.vertical(|ui| {
+        columns[0].vertical(|ui| {
           for i in 0..4 {
             if ui
               .add(
                 RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
                   .with_label(&format!("K{}", i + 1))
-                  .with_size(150.0),
+                  .with_size(187.5),
               )
               .changed()
             {
               cc_to_send.push((i as u8, self.knobs[i]));
             }
-            ui.add_space(10.0);
+            ui.add_space(5.0);
           }
         });
 
         // --- Column 2 ---
-        ui.vertical(|ui| {
-          for i in 0..4 {
-            ui.horizontal(|ui| {
-              for j in 0..2 {
-                let slider_index = i * 2 + j;
-                ui.vertical(|ui| {
-                  ui.label(format!("Slider {}", slider_index + 1));
-                  let slider = egui::Slider::new(&mut self.sliders[slider_index], 0.0..=1.0)
-                    .vertical();
-                  if ui.add_sized(Vec2::new(20.0, 120.0), slider).changed() {
-                    cc_to_send.push((20 + slider_index as u8, self.sliders[slider_index]));
-                  }
-                });
-              }
-            });
-            ui.add_space(40.0); // Spacing to align with knobs
+        columns[1].vertical(|ui| {
+          for i in 0..8 {
+            ui.label(format!("Slider {}", i + 1));
+            let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
+            if ui.add_sized(Vec2::new(120.0, 30.0), slider).changed() {
+              cc_to_send.push((20 + i as u8, self.sliders[i]));
+            }
+            if i % 2 != 0 {
+              ui.add_space(95.0); // Spacing to align with knobs
+            }
           }
         });
 
         // --- Column 3 ---
-        ui.vertical_centered(|ui| {
+        columns[2].vertical_centered(|ui| {
           if let Some(texture) = &self.logo_texture {
             ui.image(egui::ImageSource::Texture(
-              egui::load::SizedTexture::new(texture.id(), texture.size_vec2() / 4.0),
+              egui::load::SizedTexture::new(texture.id(), texture.size_vec2() / 8.0),
             ));
           }
-          ui.add_space(20.0);
+          ui.add_space(10.0);
           ui.label("Slider 9");
           let slider = egui::Slider::new(&mut self.sliders[8], 0.0..=1.0);
-          if ui.add_sized(Vec2::new(200.0, 20.0), slider).changed() {
+          if ui.add_sized(Vec2::new(450.0, 60.0), slider).changed() {
             cc_to_send.push((28, self.sliders[8]));
           }
-          ui.add_space(20.0);
+          ui.add_space(10.0);
           for i in 4..6 {
             if ui
               .add(
                 RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
                   .with_label(&format!("K{}", i + 1))
-                  .with_size(150.0),
+                  .with_size(250.0),
               )
               .changed()
             {
               cc_to_send.push((i as u8, self.knobs[i]));
             }
-            ui.add_space(10.0);
+            ui.add_space(5.0);
           }
         });
 
         // --- Column 4 ---
-        ui.vertical(|ui| {
+        columns[3].vertical(|ui| {
           ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.set_height(ui.available_height() / 3.0);
             for i in 9..11 {
               ui.label(format!("Slider {}", i + 1));
               let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
-              if ui.add_sized(Vec2::new(150.0, 20.0), slider).changed() {
+              if ui.add_sized(Vec2::new(180.0, 30.0), slider).changed() {
                 cc_to_send.push((20 + i as u8, self.sliders[i]));
               }
             }
@@ -430,18 +425,18 @@ impl MyApp {
               .add(
                 RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
                   .with_label(&format!("K{}", i + 1))
-                  .with_size(150.0),
+                  .with_size(156.25),
               )
               .changed()
             {
               cc_to_send.push((i as u8, self.knobs[i]));
             }
-            ui.add_space(10.0);
+            ui.add_space(5.0);
           }
         });
 
         // --- Column 5 ---
-        ui.vertical(|ui| {
+        columns[4].vertical(|ui| {
           ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.set_height(ui.available_height() / 3.0);
             ui.horizontal(|ui| {
@@ -450,7 +445,7 @@ impl MyApp {
                   .add(
                     RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
                       .with_label(&format!("K{}", i + 1))
-                      .with_size(150.0),
+                      .with_size(156.25),
                   )
                   .changed()
                 {
@@ -460,7 +455,7 @@ impl MyApp {
             });
             ui.label("Slider 12");
             let slider = egui::Slider::new(&mut self.sliders[11], 0.0..=1.0);
-            if ui.add_sized(Vec2::new(150.0, 20.0), slider).changed() {
+            if ui.add_sized(Vec2::new(180.0, 30.0), slider).changed() {
               cc_to_send.push((31, self.sliders[11]));
             }
           });
@@ -469,13 +464,13 @@ impl MyApp {
               .add(
                 RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
                   .with_label(&format!("K{}", i + 1))
-                  .with_size(150.0),
+                  .with_size(156.25),
               )
               .changed()
             {
               cc_to_send.push((i as u8, self.knobs[i]));
             }
-            ui.add_space(10.0);
+            ui.add_space(5.0);
           }
         });
       });
@@ -676,7 +671,9 @@ pub fn run() -> Result<(), eframe::Error> {
   let mut app = MyApp::default();
   app.setup_midi();
   let options = eframe::NativeOptions {
-    viewport: egui::ViewportBuilder::default().with_resizable(false), // Make window non-resizable
+    viewport: egui::ViewportBuilder::default()
+      .with_resizable(false)
+      .with_inner_size(egui::vec2(1440.0, 1280.0)), // Make window non-resizable and set to 1440x1280
     ..Default::default()
   };
   eframe::run_native(
