@@ -3,7 +3,6 @@ use std::io::{stdin, stdout, Write};
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::sync::Arc;
 
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
