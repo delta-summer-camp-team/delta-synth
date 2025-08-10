@@ -1,14 +1,16 @@
 use std::error::Error;
 use std::io::{stdin, stdout, Write};
 
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
 use crate::synth_state::SynthState;
 
-pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInputConnection<()>, Box<dyn Error>> {
+pub fn initiate_midi_connection(
+  synth_state: Arc<SynthState>,
+) -> Result<MidiInputConnection<()>, Box<dyn Error>> {
   let mut input = String::new();
 
   let mut midi_in = MidiInput::new("midir reading input")?;
@@ -54,7 +56,9 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
       let _k: u8 = message[1]; //номер ноты!!!
       let _j = l == 144; //включена или выключена?!!!
       synth_state_clone.last_key.store(_k, Ordering::Relaxed);
-      synth_state_clone.has_key_pressed.store(_j, Ordering::Relaxed);      
+      synth_state_clone
+        .has_key_pressed
+        .store(_j, Ordering::Relaxed);
     },
     (),
   )?;
