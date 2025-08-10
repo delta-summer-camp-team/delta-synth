@@ -434,7 +434,7 @@ impl MyApp {
             ui.label(format!("Slider {}", i + 1));
             let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
             if ui.add_sized(Vec2::new(240.0, 30.0), slider).changed() {
-              cc_to_send.push((20 + i as u8, self.sliders[i]));
+              cc_to_send.push((33 + i as u8, self.sliders[i]));
             }
             if i % 2 != 0 {
               ui.add_space(95.0); // Spacing to align with knobs
@@ -453,7 +453,7 @@ impl MyApp {
           ui.label("Slider 9");
           let slider = egui::Slider::new(&mut self.sliders[8], 0.0..=1.0);
           if ui.add_sized(Vec2::new(450.0, 60.0), slider).changed() {
-            cc_to_send.push((28, self.sliders[8]));
+            cc_to_send.push((41, self.sliders[8]));
           }
           ui.add_space(10.0);
           for i in 4..6 {
