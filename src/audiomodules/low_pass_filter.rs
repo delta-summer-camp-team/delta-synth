@@ -12,10 +12,8 @@ impl AudioModule for low_pass_filter{
 
     fn y(&mut self, x:f32){
         let dt = 1/sample_rate; 
-        let Q = self.res_factor;
-        return ((2*Q+dt*self.cutoff) * self.buffer1 + Q* y(n-2) - Q*self.cutoff*self.cutoff*dt*dt*x(n))/(Q+ dt * self.cutoff + self.cutoff*self.cutoff); //discrete solution solution of a differential equation, don't ask
+        return ((2*self.res_factor+dt*self.cutoff) * self.buffer1 + self.res_factor* y(n-2) - self.res_factor *self.cutoff*self.cutoff*dt*dt*x(n))/(self.res_factor + dt * self.cutoff + self.cutoff*self.cutoff); //discrete solution solution of a differential equation, don't ask
     }
-    //y''(t) + w/Q y'(t) + w^2 y(t) = w^2 x(t)
     fn process(&mut self, output: &mut[f32]) {
         for freq in output.iter_mut(){
             self.buffer2 = freq;
