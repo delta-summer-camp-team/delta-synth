@@ -3,9 +3,9 @@ use std::sync::Arc;
 use crate::{Ordering};
 use crate::audiomodules::AudioModule;
 use crate::synth_state::SynthState;
-const DT: f32 = 44100.0; // samples per second
+const SR: f32 = 44100.0; // sample rate per second
 
-enum GateState {
+pub enum GateState {
     Attack,
     Decay,
     Sustain,
@@ -15,10 +15,10 @@ enum GateState {
 
 pub struct AdvGate {
 
-    pub attack:  u8, //in milliseconds
-    pub decay:   u8, //in milliseconds
-    pub sustain: u8, // between 0 = 0.0 and 255 = 1.0
-    pub release: u8, //in milliseconds
+    attack:  u8, //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
+    decay:   u8, //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
+    sustain: u8, // between 0 = 0.0 and 255 = 1.0
+    release: u8, //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
 
     envelop: f32,
     gate_state: GateState,
@@ -27,7 +27,7 @@ pub struct AdvGate {
 }
 
 impl AdvGate {
-    fn new (attack: u8, decay: u8, sustain: u8, release: u8, envelop: f32, gate_state: GateState, synth_state: Arc<SynthState>) -> Self {
+    pub fn new (attack: u8, decay: u8, sustain: u8, release: u8, envelop: f32, gate_state: GateState, synth_state: Arc<SynthState>) -> Self {
         Self {
             attack,
             decay,
@@ -56,11 +56,16 @@ impl AdvGate {
 
     fn update_envelop(&mut self){
         match self.gate_state {
-            GateState::Idle    => {                             //IDLE
+            GateState::Idle    => {                                     //IDLE
+                self.envelop = 0.0;
                 self.check_press();
             }
-            GateState::Attack  => {                             //ATTACK
-                self.envelop += (self.attack as f32) / (1000.0*DT);
+            GateState::Attack  => 'block: {                             //ATTACK
+                if self.attack == 0 {
+                    self.gate_state = GateState::Decay;
+                    break 'block;
+                }
+                self.envelop += 1.0 / (self.attack as f32 * 0.02 * SR);
 
                 if self.envelop >= 1.0 {
                     self.envelop = 1.0;
@@ -68,20 +73,28 @@ impl AdvGate {
                 }
                 self.check_unpress();
             }
-            GateState::Decay   => {                             //DECAY
-                self.envelop -= (self.decay as f32) / (1000.0*DT);
+            GateState::Decay   => 'block: {                             //DECAY
+                if self.decay == 0 {
+                    self.gate_state = GateState::Sustain;
+                    break 'block;
+                }
+                self.envelop -= 1.0 / (self.decay as f32 * 0.02 * SR);
 
                 if self.envelop <= (self.sustain as f32) / 255.0 {
-                    self.envelop = self.sustain as f32 / 255.0;
                     self.gate_state = GateState::Sustain;
                 }
                 self.check_unpress();
             }
-            GateState::Sustain => {                             //SUSTAIN
+            GateState::Sustain => {                                     //SUSTAIN
+                self.envelop = self.sustain as f32 / 255.0;
                 self.check_unpress();
             }
-            GateState::Release => {                             //RELEASE
-                self.envelop -= (self.release as f32) / (1000.0*DT);
+            GateState::Release => 'block: {                             //RELEASE
+                if self.release == 0 {
+                    self.gate_state = GateState::Idle;
+                    break 'block;
+                }
+                self.envelop -= 1.0 / (self.release as f32 * 0.02 * SR);
 
                 if self.envelop <= 0.0 {
                     self.envelop = 0.0;
