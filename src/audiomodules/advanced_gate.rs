@@ -99,7 +99,7 @@ impl AudioModule for AdvGate {
 
         for sample in output.iter_mut() { 
             self.update_envelop();
-            *sample = self.get_envelop() // *=
+            *sample *= self.get_envelop();
          }
     }
 }
