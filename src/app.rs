@@ -7,7 +7,7 @@ use eframe::egui::{
   Button, Color32, Label, Pos2, Rect, Response, RichText, Sense, Shape, TextStyle, TextureHandle,
   Ui, Vec2, Widget,
 };
-use midir::{MidiInput, MidiOutput, MidiOutputConnection};
+use midir::{MidiInput, MidiInputPort, MidiOutput, MidiOutputConnection, MidiOutputPort};
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 // --- AppState Enum ---
@@ -167,6 +167,11 @@ pub struct MyApp {
   pub keyboard: Keyboard,
   pub midi_rx: Receiver<Vec<u8>>,
   pub midi_tx: Sender<Vec<u8>>,
+  // MIDI Port selection
+  pub midi_out_ports: Vec<(String, MidiOutputPort)>,
+  pub selected_midi_out_port: Option<usize>,
+  pub midi_in_ports: Vec<(String, MidiInputPort)>,
+  pub selected_midi_in_port: Option<usize>,
   // Doom mode specific state
   pub doom_state: DoomState,
 }
@@ -190,6 +195,10 @@ impl Default for MyApp {
       keyboard: Keyboard::new(),
       midi_rx,
       midi_tx,
+      midi_out_ports: Vec::new(),
+      selected_midi_out_port: None,
+      midi_in_ports: Vec::new(),
+      selected_midi_in_port: None,
       doom_state: DoomState::default(),
     }
   }
@@ -198,59 +207,114 @@ impl Default for MyApp {
 impl MyApp {
   // --- MIDI Setup and Communication ---
   fn setup_midi(&mut self) {
+    // --- MIDI Output ---
     let midi_out = match MidiOutput::new("egui-midi-synth") {
       Ok(m) => m,
       Err(e) => {
-        self.midi_status = format!("❌ MIDI Init Error: {}", e);
+        self.midi_status = format!("❌ MIDI Output Init Error: {}", e);
         return;
       }
     };
 
-    let out_ports = midi_out.ports();
-    if out_ports.is_empty() {
+    self.midi_out_ports = midi_out
+      .ports()
+      .iter()
+      .map(|p| (midi_out.port_name(p).unwrap_or_default(), p.clone()))
+      .collect();
+
+    if self.midi_out_ports.is_empty() {
       self.midi_status = "⚠️ No MIDI output ports found.".to_string();
     } else {
-      let out_port = &out_ports[0];
-      let port_name = midi_out.port_name(out_port).unwrap();
-      match midi_out.connect(out_port, "egui-midi-output") {
+      self.midi_status = format!("Found {} MIDI output ports.", self.midi_out_ports.len());
+      self.connect_midi_out(0); // Automatically connect to the first output port
+    }
+
+    // --- MIDI Input ---
+    let midi_in = match MidiInput::new("egui-midi-synth-in") {
+      Ok(m) => m,
+      Err(e) => {
+        self.midi_status = format!("{} ❌ MIDI Input Init Error: {}", self.midi_status, e);
+        return;
+      }
+    };
+
+    self.midi_in_ports = midi_in
+      .ports()
+      .iter()
+      .map(|p| (midi_in.port_name(p).unwrap_or_default(), p.clone()))
+      .collect();
+
+    if self.midi_in_ports.is_empty() {
+      self.midi_status = format!("{} ⚠️ No MIDI input ports found.", self.midi_status);
+    } else {
+      self.midi_status = format!(
+        "{} Found {} MIDI input ports.",
+        self.midi_status,
+        self.midi_in_ports.len()
+      );
+      self.connect_midi_in(0); // Automatically connect to the first input port
+    }
+  }
+
+  fn connect_midi_out(&mut self, port_index: usize) {
+    if let Some((port_name, port)) = self.midi_out_ports.get(port_index) {
+      println!("Attempting to connect to MIDI output port: {}", port_name);
+      let midi_out = MidiOutput::new("egui-midi-synth-connect").unwrap();
+      match midi_out.connect(port, "egui-midi-output") {
         Ok(conn) => {
           self.midi_out = Some(conn);
-          self.midi_status = format!("✅ Connected to: {}", port_name);
+          self.selected_midi_out_port = Some(port_index);
+          self.midi_status = format!("✅ Connected to Output: {}", port_name);
+          println!("Successfully connected to MIDI output port: {}", port_name);
         }
         Err(e) => {
-          self.midi_status = format!("❌ MIDI Connect Error: {}", e);
+          self.midi_status = format!("❌ MIDI Output Connect Error: {}", e);
+          println!("Failed to connect to MIDI output port: {}. Error: {}", port_name, e);
         }
       }
     }
+  }
 
-    let midi_in = MidiInput::new("egui-midi-synth-in").unwrap();
-    let in_ports = midi_in.ports();
-    if in_ports.is_empty() {
-      self.midi_status = format!("{} No MIDI input ports found.", self.midi_status);
-    } else {
-      let in_port = &in_ports[0];
-      let port_name = midi_in.port_name(in_port).unwrap();
+  fn connect_midi_in(&mut self, port_index: usize) {
+    if let Some((port_name, port)) = self.midi_in_ports.get(port_index) {
+      println!("Attempting to connect to MIDI input port: {}", port_name);
+      self.midi_in = None; // Drop the old connection
+
+      let midi_in = MidiInput::new("egui-midi-synth-in-connect").unwrap();
       let tx = self.midi_tx.clone();
-      let conn_in = midi_in
-        .connect(
-          in_port,
-          "egui-midi-input",
-          move |_, message, _| {
-            tx.send(message.to_vec()).unwrap();
-          },
-          (),
-        )
-        .unwrap();
-      self.midi_in = Some(conn_in);
-      self.midi_status =
-        format!("{} ✅ Connected to MIDI In: {}", self.midi_status, port_name);
+      let port_clone = port.clone();
+      let conn_in = midi_in.connect(
+        &port_clone,
+        "egui-midi-input",
+        move |_, message, _| {
+          println!("MIDI in: {:?}", message);
+          tx.send(message.to_vec()).unwrap();
+        },
+        (),
+      );
+
+      match conn_in {
+        Ok(conn) => {
+          self.midi_in = Some(conn);
+          self.selected_midi_in_port = Some(port_index);
+          self.midi_status = format!("{} ✅ Connected to Input: {}", self.midi_status, port_name);
+          println!("Successfully connected to MIDI input port: {}", port_name);
+        }
+        Err(e) => {
+          self.midi_status =
+            format!("{} ❌ MIDI Input Connect Error: {}", self.midi_status, e);
+          println!("Failed to connect to MIDI input port: {}. Error: {}", port_name, e);
+        }
+      }
     }
   }
 
   fn send_cc(&mut self, controller: u8, value: f32) {
     if let Some(ref mut conn) = self.midi_out {
       let midi_value = (value.clamp(0.0, 1.0) * 127.0).round() as u8;
-      let _ = conn.send(&[0xB0, controller, midi_value]);
+      let msg = [0xB0, controller, midi_value];
+      println!("MIDI out: {:?}", msg);
+      let _ = conn.send(&msg);
     }
   }
 
@@ -346,7 +410,6 @@ impl MyApp {
     });
 
     egui::CentralPanel::default().show(ctx, |ui| {
-      // Use columns to create a 5-column layout
       ui.columns(5, |columns| {
         // --- Column 1 ---
         columns[0].vertical(|ui| {
@@ -370,7 +433,7 @@ impl MyApp {
           for i in 0..8 {
             ui.label(format!("Slider {}", i + 1));
             let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
-            if ui.add_sized(Vec2::new(120.0, 30.0), slider).changed() {
+            if ui.add_sized(Vec2::new(240.0, 30.0), slider).changed() {
               cc_to_send.push((20 + i as u8, self.sliders[i]));
             }
             if i % 2 != 0 {
@@ -415,7 +478,7 @@ impl MyApp {
             for i in 9..11 {
               ui.label(format!("Slider {}", i + 1));
               let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
-              if ui.add_sized(Vec2::new(180.0, 30.0), slider).changed() {
+              if ui.add_sized(Vec2::new(360.0, 30.0), slider).changed() {
                 cc_to_send.push((20 + i as u8, self.sliders[i]));
               }
             }
@@ -455,7 +518,7 @@ impl MyApp {
             });
             ui.label("Slider 12");
             let slider = egui::Slider::new(&mut self.sliders[11], 0.0..=1.0);
-            if ui.add_sized(Vec2::new(180.0, 30.0), slider).changed() {
+            if ui.add_sized(Vec2::new(360.0, 30.0), slider).changed() {
               cc_to_send.push((31, self.sliders[11]));
             }
           });
@@ -498,6 +561,55 @@ impl MyApp {
           ui.add_space(10.0);
           self.keyboard.ui(ui);
           ui.label(&self.midi_status);
+
+          // --- MIDI Port Selection ---
+          ui.add_space(10.0);
+          ui.heading("MIDI Connections");
+
+          // Output Port Selector
+          let selected_out_text = if let Some(index) = self.selected_midi_out_port {
+            self.midi_out_ports.get(index).map_or("None", |(name, _)| name)
+          } else {
+            "None"
+          };
+
+          let mut selected_out_port_index = None;
+          egui::ComboBox::from_label("Output Port")
+            .selected_text(selected_out_text)
+            .show_ui(ui, |ui| {
+              for (i, (name, _)) in self.midi_out_ports.iter().enumerate() {
+                if ui.selectable_label(self.selected_midi_out_port == Some(i), name).clicked() {
+                  selected_out_port_index = Some(i);
+                }
+              }
+            });
+
+          if let Some(index) = selected_out_port_index {
+            self.connect_midi_out(index);
+          }
+
+          // Input Port Selector
+          let selected_in_text = if let Some(index) = self.selected_midi_in_port {
+            self.midi_in_ports.get(index).map_or("None", |(name, _)| name)
+          } else {
+            "None"
+          };
+
+          let mut selected_in_port_index = None;
+          egui::ComboBox::from_label("Input Port")
+            .selected_text(selected_in_text)
+            .show_ui(ui, |ui| {
+              for (i, (name, _)) in self.midi_in_ports.iter().enumerate() {
+                if ui.selectable_label(self.selected_midi_in_port == Some(i), name).clicked() {
+                  selected_in_port_index = Some(i);
+                }
+              }
+            });
+
+          if let Some(index) = selected_in_port_index {
+            self.connect_midi_in(index);
+          }
+
           ui.add_space(5.0);
         });
         ui.add_space(50.0);
@@ -672,8 +784,8 @@ pub fn run() -> Result<(), eframe::Error> {
   app.setup_midi();
   let options = eframe::NativeOptions {
     viewport: egui::ViewportBuilder::default()
-      .with_resizable(false)
-      .with_inner_size(egui::vec2(1440.0, 1280.0)), // Make window non-resizable and set to 1440x1280
+      .with_resizable(true)
+      .with_inner_size(egui::vec2(1920.0, 1080.0)),
     ..Default::default()
   };
   eframe::run_native(
