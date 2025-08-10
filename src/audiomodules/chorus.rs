@@ -74,7 +74,6 @@ impl Chorus {
   }
 }
 
-
 impl AudioModule for Chorus {
   fn process(&mut self, input: &mut [f32]) {
     for sample in input.iter_mut() {
