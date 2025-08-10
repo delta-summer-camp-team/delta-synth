@@ -1,7 +1,5 @@
 use std::sync::Arc;
-
-use crate::{Ordering};
-use crate::audiomodules::AudioModule;
+use crate::{audiomodules::AudioModule, Ordering};
 use crate::synth_state::SynthState;
 const SR: f32 = 44100.0; // sample rate per second
 
