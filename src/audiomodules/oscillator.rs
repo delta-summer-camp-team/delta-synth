@@ -1,4 +1,4 @@
-use crate::audio_modules::AudioModule;
+use crate::audiomodules::AudioModule;
 use std::f32::consts::PI;
 use std::sync::Arc;
 use crate::synth_state::SynthState;
@@ -35,32 +35,21 @@ pub fn midi_note_to_freq(note: f32) -> f32 {
 impl AudioModule for Oscillator {
     fn process(&mut self, output: &mut [f32]) {
 
-        let midinota;
-        let sdvig_oktov;
-        let nnno;
-        let micro_zdvig;
-        let gromkost;
-        let waveforma_index;
 
+     let midinota = self.synthstate.last_key.load(Ordering::Relaxed);
 
-      midinota = self.synthstate.last_key.load(std::sync::atomic::Ordering::Relaxed);
-
-      if midinota == 0 {
-    output.fill(0.0);
-    return;
-}
-
-      gromkost = {let vol = self.synthstate.gromkost.lock().unwrap();
+     
+      let gromkost = {let vol = self.synthstate.gromkost.lock().unwrap();
             vol[self.id]};
 
-      sdvig_oktov = self.synthstate.sdvig_oktov[self.id].load(Ordering::Relaxed) as f32;
-      nnno = self.synthstate.nnno[self.id].load(Ordering::Relaxed) as f32;
+      let sdvig_oktov = self.synthstate.sdvig_oktov[self.id].load(Ordering::Relaxed) as f32;
+      let nnno = self.synthstate.nnno[self.id].load(Ordering::Relaxed) as f32;
 
-      micro_zdvig = {
+      let micro_zdvig = {
         let micros = self.synthstate.micro_zdvig.lock().unwrap();
             micros[self.id]
       };
-      waveforma_index = self.synthstate.waveformis[self.id].load(Ordering::Relaxed);
+      let waveforma_index = self.synthstate.waveformis[self.id].load(Ordering::Relaxed);
 
 
 
@@ -86,8 +75,7 @@ impl AudioModule for Oscillator {
                 2 => 2.0 * self.phase - 1.0,
                 3 => 4.0 * (self.phase - 0.5).abs() - 1.0,
                 _ => 0.0
-                };
-                
+                };        
             *sample += v * gromkost;
             }
 
