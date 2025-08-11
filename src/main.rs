@@ -2,11 +2,12 @@ mod audiomodules;
 
 use crate::audiomodules::oscillator::Waveforma;
 use audiomodules::oscillator::Oscillator;
+use audiomodules::advanced_gate::AdvGate;
 use audiomodules::AudioModule;
 use std::sync::{atomic::Ordering, Arc, Mutex};
 
-use cpal::traits::{DeviceTrait, HostTrait};
-use cpal::{Device, SupportedStreamConfig};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{Device, SupportedStreamConfig, Stream};
 
 use anyhow::Result;
 use midir::MidiInputConnection;
@@ -44,12 +45,45 @@ fn build_audio_modules() -> Vec<Arc<Mutex<dyn AudioModule>>> {
   ]
 }
 
+
+
+fn start_audio_stream(
+    device: cpal::Device,
+    config: cpal::StreamConfig,
+    modules: Vec<Arc<Mutex<dyn AudioModule>>>,
+) -> Stream {
+    let data_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+        for sample in data.iter_mut() {
+            let mut output_sample = 0.0;
+            for module in &modules {
+                if let Ok(mut m) = module.lock() {
+                    let mut buffer = [0.0];
+                    m.process(&mut buffer);
+                }
+            }
+
+        }
+    };
+
+    let error_callback = |err| {
+        eprintln!("Ошибка потока: {}", err);
+    };
+
+    device
+        .build_output_stream(&config, data_callback, error_callback, None)
+        .expect("Не удалось создать поток вывода")
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+  let host = cpal::default_host();
+  let device = host.default_output_device().expect("No output device available");
+  let config = device.default_output_config().expect("Failed to get default config");
   let modules = build_audio_modules();
   let _module = modules[0].clone();
   let _ = init_audio_device();
   let _conn_in = init_synth_core()?;
   println!("SynthState готов");
+  start_audio_stream(device,config.into(),modules).play();
 
   loop {
     std::thread::sleep(std::time::Duration::from_millis(500));
