@@ -6,9 +6,9 @@ use audiomodules::oscillator::Oscillator;
 use audiomodules::AudioModule;
 use std::sync::{atomic::Ordering, Arc, Mutex};
 
+use anyhow::Result;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{Device, Stream, SupportedStreamConfig};
-use anyhow::Result;
 use midir::MidiInputConnection;
 
 mod synth_state; // подключаем модуль
@@ -68,7 +68,9 @@ fn start_audio_stream(
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
   let modules = build_audio_modules();
-  let Some((device, config))  = init_audio_device() else { panic!("Init device failed") };
+  let Some((device, config)) = init_audio_device() else {
+    panic!("Init device failed")
+  };
   let _conn_in = init_synth_core()?;
   println!("SynthState готов");
   start_audio_stream(device, config.into(), modules)
