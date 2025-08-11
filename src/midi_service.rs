@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::io::{stdin, stdout, Write};
 
-use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 use midir::{Ignore, MidiInput, MidiInputConnection};
 
@@ -59,7 +59,9 @@ pub fn initiate_midi_connection(
       synth_state_clone
         .has_key_pressed
         .store(_j, Ordering::Relaxed);
-      synth_state_clone.has_key_pressed.store(_j, Ordering::Relaxed);
+      synth_state_clone
+        .has_key_pressed
+        .store(_j, Ordering::Relaxed);
     },
     (),
   )?;
