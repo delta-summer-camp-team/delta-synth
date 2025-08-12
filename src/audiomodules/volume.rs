@@ -6,3 +6,4 @@ impl AudioModule for Volume {
         output *= volume;
     }
 }
+
