@@ -5,6 +5,7 @@ pub struct SynthState {
   pub last_key: AtomicU8,
   pub has_key_pressed: AtomicBool,
   pub delay_delay_time: AtomicU8,
+
   pub delay_feed_back: AtomicU8,
   pub delay_mix: AtomicU8,
   pub oscillator_wave_type: [AtomicU8; 4],
