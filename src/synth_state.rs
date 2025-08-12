@@ -17,6 +17,20 @@ pub struct SynthState {
     pub nnno: Vec<AtomicI8>,
     pub micro_zdvig: Mutex<Vec<f32>>,
 
+    pub delay_delay_time: AtomicU8,
+    pub delay_feed_back: AtomicU8,
+    pub delay_mix: AtomicU8,
+    pub gain_multiply_by: AtomicU8,
+    pub lpf_cutoff: AtomicU8,
+    pub lpf_res_factor: AtomicU8,
+    pub gate_attack: AtomicU8,
+    pub gate_decay: AtomicU8,
+    pub gate_sustain: AtomicU8,
+    pub gate_release: AtomicU8,
+    pub reverb_decay_time: AtomicU8,
+    pub reverb_dry_wet_mix: AtomicU8,
+    pub glide_time: AtomicU8,
+    pub chorus_lfo_freq: AtomicU8,
 }
 
 impl SynthState {
@@ -30,6 +44,21 @@ impl SynthState {
             sdvig_oktov: (0..kol_osc).map(|_| AtomicI8::new(0)).collect(),
             nnno: (0..kol_osc).map(|_| AtomicI8::new(0)).collect(),
             micro_zdvig: Mutex::new(vec![0.0; kol_osc]),
+
+            delay_delay_time: Default::default(),
+            delay_feed_back: Default::default(),
+            delay_mix: Default::default(),
+            gain_multiply_by: Default::default(),
+            lpf_cutoff: Default::default(),
+            lpf_res_factor: Default::default(),
+            gate_attack: Default::default(),
+            gate_decay: Default::default(),
+            gate_sustain: Default::default(),
+            gate_release: Default::default(),
+            reverb_decay_time: Default::default(),
+            reverb_dry_wet_mix: Default::default(),
+            glide_time: Default::default(),
+            chorus_lfo_freq: Default::default(),
         });
 
 
