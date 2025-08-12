@@ -1,9 +1,14 @@
 use std::error::Error;
 use std::io::{stdin, stdout, Write};
 
-use midir::{Ignore, MidiInput};
+use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
-pub fn midi_service() -> Result<(), Box<dyn Error>> {
+use midir::{Ignore, MidiInput, MidiInputConnection};
+
+use crate::synth_state::SynthState;
+
+pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInputConnection<()>, Box<dyn Error>> {
   let mut input = String::new();
 
   let mut midi_in = MidiInput::new("midir reading input")?;
@@ -39,6 +44,7 @@ pub fn midi_service() -> Result<(), Box<dyn Error>> {
   let in_port_name = midi_in.port_name(in_port)?;
 
   // _conn_in needs to be a named parameter, because it needs to be kept alive until the end of the scope
+  let synth_state_clone = Arc::clone(&synth_state);
   let _conn_in = midi_in.connect(
     in_port,
     "midir-read-input",
@@ -46,8 +52,9 @@ pub fn midi_service() -> Result<(), Box<dyn Error>> {
       println!("{}: {:?} (len = {})", stamp, message, message.len());
       let l = message[0];
       let _k: u8 = message[1]; //номер ноты!!!
-      let j = l == 144; //включена или выключена?!!!
-      println!("info: {}", j);
+      let _j = l == 144; //включена или выключена?!!!
+      synth_state_clone.last_key.store(_k, Ordering::Relaxed);
+      synth_state_clone.has_key_pressed.store(_j, Ordering::Relaxed);      
     },
     (),
   )?;
@@ -61,5 +68,5 @@ pub fn midi_service() -> Result<(), Box<dyn Error>> {
   stdin().read_line(&mut input)?; // wait for next enter key press
 
   println!("Closing connection");
-  Ok(())
+  Ok(_conn_in)
 }
