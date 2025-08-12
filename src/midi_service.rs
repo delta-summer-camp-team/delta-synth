@@ -55,6 +55,45 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                 let velocity = message[2];
 
                 match status {
+                    0xB0 => {
+                        if note==44 {
+                          synth_state_clone.gate_attack.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==45{
+                          synth_state_clone.gate_decay.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==46{
+                          synth_state_clone.gate_release.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==47{
+                          synth_state_clone.gate_sustain.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==35{
+                          synth_state_clone.lpf_cutoff.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==34{
+                          synth_state_clone.lpf_res_factor.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==36{
+                          synth_state_clone.delay_mix.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==37{
+                          synth_state_clone.delay_feed_back.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==38{
+                          synth_state_clone.delay_delay_time.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==39{
+                          synth_state_clone.reverb_decay_time.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==40{
+                          synth_state_clone.reverb_dry_wet_mix.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==41{
+                          synth_state_clone.glide_time.store(velocity, Ordering::Relaxed);
+                        }
+                        
+                    }
                     0x90 if velocity > 0 => { // Note On
                         synth_state_clone.last_key.store(note, Ordering::Relaxed);
                         synth_state_clone.has_key_pressed.store(true, Ordering::Relaxed);
@@ -67,12 +106,7 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                 }
             }
             
-      println!("{}: {:?} (len = {})", stamp, message, message.len());
-      let l = message[0];
-      let _k: u8 = message[1]; //номер ноты!!!
-      let _j = l == 144; //включена или выключена?!!!
-      synth_state_clone.last_key.store(_k, Ordering::Relaxed);
-      synth_state_clone.has_key_pressed.store(_j, Ordering::Relaxed);      
+      println!("{}: {:?} (len = {})", stamp, message, message.len());     
     },
     (),
   )?;
@@ -88,3 +122,6 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
   println!("Closing connection");
   Ok(_conn_in)
 }
+
+
+
