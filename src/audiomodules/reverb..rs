@@ -11,7 +11,6 @@ struct DelayLine {
     buffer: Vec<f32>,
     write_head: usize,
 }
-
 impl DelayLine {
     // Метод, который задерживает один сэмпл
     fn process_sample(&mut self, input: f32) -> f32 {
@@ -80,10 +79,38 @@ struct LateReflections {
 
 impl LateReflections {
     fn new() -> Self {
-        // Здесь мы создаем несколько гребенчатых и фазовых фильтров
-        // с разными, тщательно подобранными (обычно простые числа) длинами задержек,
-        // чтобы избежать "металлического" призвука.
-        // ...
+        let comb_delays = [1557, 1617, 1491, 1422];
+        // Длины задержек для all-pass фильтров
+        let all_pass_delays = [225, 556];
+
+        // Создаём гребенчатые фильтры с разными фидбэками
+        let comb_filters = comb_delays
+            .iter()
+            .map(|&delay| CombFilter {
+                delay_line: DelayLine {
+                    buffer: vec![0.0; delay],
+                    write_head: 0,
+                },
+                feedback: 0.78, // можно вынести как параметр, если нужно тонко настраивать
+            })
+            .collect();
+
+        // Создаём all-pass фильтры
+        let all_pass_filters = all_pass_delays
+            .iter()
+            .map(|&delay| AllPassFilter {
+                delay_line: DelayLine {
+                    buffer: vec![0.0; delay],
+                    write_head: 0,
+                },
+                gain: 0.7,
+            })
+            .collect();
+
+        Self {
+            comb_filters,
+            all_pass_filters,
+        }
     }
 
     fn process_sample(&mut self, input: f32) -> f32 {
@@ -101,7 +128,6 @@ impl LateReflections {
         final_output
     }
 }
-
 impl AudioModule for ReverbEffect {
     fn process(&mut self, output: &mut [f32]) {
         for sample in output.iter_mut() {
