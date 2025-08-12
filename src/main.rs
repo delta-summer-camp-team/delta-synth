@@ -10,7 +10,7 @@ use midir::{MidiInput, MidiInputConnection};
 mod synth_state;
 mod midi_service;
 
-use crate::{audiomodules::reverb::ReverbEffect, synth_state::SynthState};
+use crate::{audiomodules::{advanced_gate::{AdvGate, GateState}, reverb::ReverbEffect}, synth_state::SynthState};
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{Device, SupportedStreamConfig};
 
@@ -99,6 +99,7 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
   let osc2 = Oscillator::new(2, 880.0, 44100.0,  synthstate.clone());
   let osc3 = Oscillator::new(3, 1320.0, 44100.0,  synthstate.clone());
   //let reverbeffect = ReverbEffect
+  let gate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone());
 
 
   vec![
@@ -107,6 +108,7 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
     Arc::new(Mutex::new(osc2)), // пила
     Arc::new(Mutex::new(osc3)), // Триугольни
     //Arc::new(Mutex::new(reverbeffect)),
+    Arc::new(Mutex::new(gate)),
     
   ]
 }
