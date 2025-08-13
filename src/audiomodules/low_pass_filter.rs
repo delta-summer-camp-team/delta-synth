@@ -92,7 +92,7 @@ impl AudioModule for LowPassFilter {
     fn process(&mut self, output: &mut [f32]) {
         // In-place: assumes `output` already contains the oscillator signal.
         for s in output.iter_mut() {
-            *s = self.filter(*s);
+            *s = self.filter(*s) * self.gate.get_envelop();
         }
     }
 }

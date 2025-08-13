@@ -112,9 +112,7 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
     Arc::new(Mutex::new(osc3)), // Триугольни
     //Arc::new(Mutex::new(reverbeffect)),
     //Arc::new(Mutex::new(lpf)), // low pass filter
-    Arc::new(Mutex::new(lpf)),
     Arc::new(Mutex::new(gate)), // normal gate
-    Arc::new(Mutex::new(lpfgate)), //low pass filter influenced by gate (?)
 
   ]
 }
