@@ -1,6 +1,6 @@
+use crate::audiomodules::advanced_gate::AdvGate;
 use crate::audiomodules::AudioModule;
 
-#[derive(Default)]
 pub struct LowPassFilter {
     pub cutoff: f32,      // Hz (f0)
     pub res_factor: f32,  // 0..1 mapped to Q
@@ -16,10 +16,12 @@ pub struct LowPassFilter {
     // cache to avoid recomputing every sample
     last_cutoff: f32,
     last_res_factor: f32,
+
+    gate: AdvGate, 
 }
 
 impl LowPassFilter {
-    pub fn new(cutoff: f32, res_factor: f32, sample_rate: f32) -> Self {
+    pub fn new(cutoff: f32, res_factor: f32, sample_rate: f32, gate: AdvGate) -> Self {
         let mut s = Self {
             cutoff,
             res_factor,
@@ -28,6 +30,7 @@ impl LowPassFilter {
             z1: 0.0, z2: 0.0,
             last_cutoff: f32::NAN,
             last_res_factor: f32::NAN,
+            gate,
         };
         s.update_coeffs();
         s

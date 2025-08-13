@@ -131,8 +131,6 @@ impl AudioModule for AdvGate {
         self.update_envelop();
         *sample *= self.get_envelop();
       }
-    } else {
-      self.lpf.change_cutoff(self.envelop);
     }
   }
 }
