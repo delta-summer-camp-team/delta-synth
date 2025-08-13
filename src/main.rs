@@ -102,8 +102,8 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
   //let reverbeffect = ReverbEffect
   //let lpf = LowPassFilter::new(1760.0 , 0.707 , 44100.0);
   let lpf = Arc::new(Mutex::new(LowPassFilter::new(1760.0 , 0.707 , 44100.0)));
-  let gate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone(),false,lpf.clone());
-  let lpfgate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone(),true,lpf.clone());
+  let gate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone());
+  let lpfgate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone());
 
   vec![
     Arc::new(Mutex::new(osc)), // Квадрат
