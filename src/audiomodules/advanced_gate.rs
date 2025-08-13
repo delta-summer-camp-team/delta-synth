@@ -1,7 +1,7 @@
 use crate::audiomodules::low_pass_filter::LowPassFilter;
 use crate::synth_state::SynthState;
 use crate::{audiomodules::AudioModule, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 const SR: f32 = 44100.0; // sample rate per second
 
 
@@ -23,7 +23,7 @@ pub struct AdvGate {
   gate_state: GateState,
   synth_state: Arc<SynthState>,
   pass_to_lpf: bool,
-  lpf: Option<Arc<std::sync::Mutex<LowPassFilter>>>,
+  lpf: Arc<Mutex<LowPassFilter>>,
 }
 
 impl AdvGate {
@@ -36,7 +36,7 @@ impl AdvGate {
     gate_state: GateState,
     synth_state: Arc<SynthState>,
     pass_to_lpf: bool,
-    lpf: Option<Arc<std::sync::Mutex<LowPassFilter>>>,
+    lpf: Arc<Mutex<LowPassFilter>>,
   ) -> Self {
     Self {
       attack,
@@ -132,7 +132,9 @@ impl AudioModule for AdvGate {
         *sample *= self.get_envelop();
       }
     } else {
-      self.lpf.change_cutoff(self.envelop);
+      if let Ok(mut lpf) = self.lpf.lock() {
+        lpf.change_cutoff(self.envelop);
+}
     }
   }
 }
