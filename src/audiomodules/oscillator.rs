@@ -1,6 +1,7 @@
 use crate::audiomodules::glide::Glide;
 use crate::audiomodules::AudioModule;
 use crate::synth_state::SynthState;
+
 use std::f32::consts::PI;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -24,6 +25,15 @@ impl Oscillator {
     }
   }
 }
+
+
+
+impl Oscillator {
+    pub fn id(&self) -> usize {
+        self.id
+    }
+}
+
 
 pub fn midi_note_to_freq(note: f32) -> f32 {
   if note <= 0.0 {

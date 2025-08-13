@@ -1,25 +1,27 @@
 mod audiomodules;
 
-use audiomodules::AudioModule;
 use audiomodules::oscillator::Oscillator;
-use std::sync::{Arc, Mutex, atomic::{Ordering},};
+use audiomodules::AudioModule;
+use std::sync::{atomic::Ordering, Arc, Mutex};
 
 use anyhow::Result;
 use midir::{MidiInput, MidiInputConnection};
 
-mod synth_state;
 mod midi_service;
+mod synth_state;
 
-use crate::{audiomodules::{advanced_gate::{AdvGate, GateState}, reverb::ReverbEffect}, synth_state::SynthState};
+use crate::{
+  audiomodules::{
+    advanced_gate::{AdvGate, GateState},
+    reverb::ReverbEffect,
+  },
+  synth_state::SynthState,
+};
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{Device, SupportedStreamConfig};
 
-
-
-use cpal::{Stream, StreamConfig};
 use cpal::traits::StreamTrait;
-
-
+use cpal::{Stream, StreamConfig};
 
 /// Инициализация аудиоустройства и конфигурации
 fn init_audio_device() -> Option<(Device, SupportedStreamConfig)> {
@@ -29,36 +31,36 @@ fn init_audio_device() -> Option<(Device, SupportedStreamConfig)> {
   Some((device, config))
 }
 fn start_audio_stream(
-    device: Device,
-    config: StreamConfig,
-    modules: Vec<Arc<Mutex<dyn AudioModule>>>,
+  device: Device,
+  config: StreamConfig,
+  modules: Vec<Arc<Mutex<dyn AudioModule>>>,
 ) -> Stream {
-    let stream = device
-        .build_output_stream(
-            &config,
-            {
-                let modules = modules.clone();
-                move |data: &mut [f32], _| { 
-                  for sample in data.iter_mut() {
-                      *sample = 0.0;
-                  }
-                    for module in &modules {
-                        if let Ok(mut m) = module.lock() {
-                            m.process(data);
-                        }
-                    }
-                }
-            },
-            move |_err| {
-                // Ошибки можно обработать здесь (пока игнорируем)
-            },
-            None,
-        )
-        .expect("Не удалось создать аудиопоток");
-    stream
+  let stream = device
+    .build_output_stream(
+      &config,
+      {
+        let modules = modules.clone();
+        move |data: &mut [f32], _| {
+          for sample in data.iter_mut() {
+            *sample = 0.0;
+          }
+          for module in &modules {
+            if let Ok(mut m) = module.lock() {
+              m.process(data);
+            }
+          }
+        }
+      },
+      move |_err| {
+        // Ошибки можно обработать здесь (пока игнорируем)
+      },
+      None,
+    )
+    .expect("Не удалось создать аудиопоток");
+  stream
 }
 pub fn init_synth_core() -> Result<(Arc<SynthState>, MidiInputConnection<()>)> {
-  let synth_state = SynthState::new(4);
+  let synth_state = SynthState::new(8);
 
   let midi_in = MidiInput::new("midir reading input")?;
   let in_ports = midi_in.ports();
@@ -94,43 +96,45 @@ pub fn init_synth_core() -> Result<(Arc<SynthState>, MidiInputConnection<()>)> {
 }
 
 fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioModule>>> {
-  let osc = Oscillator::new(0, 440.0, 44100.0,  synthstate.clone());
-  let osc1 = Oscillator::new(1, 660.0, 44100.0,  synthstate.clone());
-  let osc2 = Oscillator::new(2, 880.0, 44100.0,  synthstate.clone());
-  let osc3 = Oscillator::new(3, 1320.0, 44100.0,  synthstate.clone());
-  //let reverbeffect = ReverbEffect
-  let gate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone());
+  use audiomodules::spread::Spread;
 
+  let osc = Oscillator::new(0, 440.0, 44100.0, synthstate.clone());
+  let osc1 = Oscillator::new(1, 660.0, 44100.0, synthstate.clone());
+  let osc2 = Oscillator::new(2, 880.0, 44100.0, synthstate.clone());
+  let osc3 = Oscillator::new(3, 1320.0, 44100.0, synthstate.clone());
+
+  let mut spread = Spread::new(8, 44100.0, synthstate.clone());
+  spread.set_spread_mode(true); // включаем разброс частот
+
+  let gate = AdvGate::new(7, 7, 255, 7, 1.0, GateState::Idle, synthstate.clone());
 
   vec![
     Arc::new(Mutex::new(osc)), // Квадрат
-    Arc::new(Mutex::new(osc1)), // син
+    Arc::new(Mutex::new(osc1)), //син
     Arc::new(Mutex::new(osc2)), // пила
     Arc::new(Mutex::new(osc3)), // Триугольни
-    //Arc::new(Mutex::new(reverbeffect)),
+    Arc::new(Mutex::new(spread)),
     Arc::new(Mutex::new(gate)),
-    
   ]
 }
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-
   let (_synth_state, _midi_conn) = init_synth_core()?;
   println!("SynthState готов");
   let modules = build_audio_modules(_synth_state.clone());
   let _ = init_audio_device();
-  
-     let (device, supported_config) = match init_audio_device() {
-        Some(val) => val,
-        None => return Ok(()), // Если не получилось, просто завершаемся молча
-    };
-    let config = supported_config.config();
 
-    let stream = start_audio_stream(device, config, modules);
-    stream.play().expect("Не удалось запустить поток");
+  let (device, supported_config) = match init_audio_device() {
+    Some(val) => val,
+    None => return Ok(()), // Если не получилось, просто завершаемся молча
+  };
+  let config = supported_config.config();
 
-    std::thread::park(); // Чтобы поток не завершился сразу
+  let stream = start_audio_stream(device, config, modules);
+  stream.play().expect("Не удалось запустить поток");
+
+  std::thread::park(); // Чтобы поток не завершился сразу
 
   loop {
     std::thread::sleep(std::time::Duration::from_millis(500));
