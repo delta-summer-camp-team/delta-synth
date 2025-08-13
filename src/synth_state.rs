@@ -18,7 +18,7 @@ pub struct SynthState {
     pub micro_zdvig: Mutex<Vec<f32>>,
 
     pub delay_delay_time: AtomicU8,
-    pub delay_feed_back: AtomicU8,
+    pub delay_feedback: AtomicU8,
     pub delay_mix: AtomicU8,
     pub gain_multiply_by: AtomicU8,
     pub lpf_cutoff: AtomicU8,
@@ -31,6 +31,11 @@ pub struct SynthState {
     pub reverb_dry_wet_mix: AtomicU8,
     pub glide_time: AtomicU8,
     pub chorus_lfo_freq: AtomicU8,
+    pub chorus_base_delay_sec: AtomicU8, // базовая задержка (например 0.015)
+    pub chorus_variation_sec: AtomicU8,  // амплитуда модуляции (например 0.005)
+    pub chorus_lfo_phase: AtomicU8,      // текущее значение фазы LFO
+    pub chorus_feedback: AtomicU8,       // 0.0..<1.0
+    pub chorus_mix: AtomicU8,
 }
 
 impl SynthState {
@@ -46,7 +51,7 @@ impl SynthState {
             micro_zdvig: Mutex::new(vec![0.0; kol_osc]),
 
             delay_delay_time: Default::default(),
-            delay_feed_back: Default::default(),
+            delay_feedback: Default::default(),
             delay_mix: Default::default(),
             gain_multiply_by: Default::default(),
             lpf_cutoff: Default::default(),
@@ -59,6 +64,11 @@ impl SynthState {
             reverb_dry_wet_mix: Default::default(),
             glide_time: Default::default(),
             chorus_lfo_freq: Default::default(),
+            chorus_base_delay_sec: Default::default(),
+            chorus_variation_sec: Default::default(),
+            chorus_lfo_phase: Default::default(),
+            chorus_feedback: Default::default(),
+            chorus_mix: Default::default(),
         });
 
 
