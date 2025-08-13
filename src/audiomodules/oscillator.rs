@@ -1,21 +1,21 @@
 use crate::audiomodules::glide::Glide;
+use crate::audiomodules::modulator::{modulation, Modulator};
 use crate::audiomodules::AudioModule;
 use crate::synth_state::SynthState;
 use std::f32::consts::PI;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-
 struct mini_oscilatorsa {
   phase: f32,
-  frequenchy: f32
+  frequenchy: f32,
 }
 
 impl mini_oscilatorsa {
   fn op() -> Self {
     Self {
-      phase:0.0,
-      frequenchy:0.0
+      phase: 0.0,
+      frequenchy: 0.0,
     }
   }
 }
@@ -26,8 +26,9 @@ pub struct Oscillator {
   sample_rate: f32,
   synthstate: Arc<SynthState>,
   id: usize,
+  modulator: Modulator,
   glide: Glide,
-  mini_osilators: [mini_oscilatorsa; 8]
+  mini_osilators: [mini_oscilatorsa; 8],
 }
 
 impl Oscillator {
@@ -39,8 +40,22 @@ impl Oscillator {
       sample_rate,
       synthstate: synthstate.clone(),
       id,
+      modulator: Modulator {
+        nessesary_amplitude: 1.0,
+        varying: 0.0,
+        amp: 2.0,
+      },
       glide: Glide::new(frequency, synthstate, sample_rate),
-      mini_osilators: [mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op()]
+      mini_osilators: [
+        mini_oscilatorsa::op(),
+        mini_oscilatorsa::op(),
+        mini_oscilatorsa::op(),
+        mini_oscilatorsa::op(),
+        mini_oscilatorsa::op(),
+        mini_oscilatorsa::op(),
+        mini_oscilatorsa::op(),
+        mini_oscilatorsa::op(),
+      ],
     }
   }
 }
@@ -80,35 +95,35 @@ impl AudioModule for Oscillator {
     }
 
     if poli_moda {
-    for (osc_i, nota) in nazatie_knopkii.iter().take(8).enumerate() {
+      for (osc_i, nota) in nazatie_knopkii.iter().take(8).enumerate() {
         let basa_nota = *nota as f32 + sdvig_oktov * 12.0 + nnno + micro_zdvig;
         self.mini_osilators[osc_i].frequenchy = midi_note_to_freq(basa_nota);
 
         let phase_increment = self.mini_osilators[osc_i].frequenchy / self.sample_rate;
         for sample in output.iter_mut() {
-            self.mini_osilators[osc_i].phase += phase_increment;
-            if self.mini_osilators[osc_i].phase > 1.0 {
-                self.mini_osilators[osc_i].phase -= 1.0;
-            }
+          self.mini_osilators[osc_i].phase += phase_increment;
+          if self.mini_osilators[osc_i].phase > 1.0 {
+            self.mini_osilators[osc_i].phase -= 1.0;
+          }
 
-            let v = match waveforma_index {
-                0 => (self.mini_osilators[osc_i].phase * 2.0 * PI).sin(),
-                1 => {
-                    if (self.mini_osilators[osc_i].phase * 2.0 * PI).sin() > 0.0 {
-                        1.0
-                    } else {
-                        -1.0
-                    }
-                }
-                2 => 2.0 * self.mini_osilators[osc_i].phase - 1.0,
-                3 => 4.0 * (self.mini_osilators[osc_i].phase - 0.5).abs() - 1.0,
-                _ => 0.0,
-            };
+          let v = match waveforma_index {
+            0 => (self.mini_osilators[osc_i].phase * 2.0 * PI).sin(),
+            1 => {
+              if (self.mini_osilators[osc_i].phase * 2.0 * PI).sin() > 0.0 {
+                1.0
+              } else {
+                -1.0
+              }
+            },
+            2 => 2.0 * self.mini_osilators[osc_i].phase - 1.0,
+            3 => 4.0 * (self.mini_osilators[osc_i].phase - 0.5).abs() - 1.0,
+            _ => 0.0,
+          };
 
-            *sample += v * gromkost / nazatie_knopkii.len() as f32;
+          *sample += v * gromkost / nazatie_knopkii.len() as f32;
         }
-    }
-} else {
+      }
+    } else {
       let midinota = self.synthstate.last_key.load(Ordering::Relaxed);
       let basa_nota = midinota as f32 + sdvig_oktov * 12.0 + nnno + micro_zdvig;
       let frequency_for_glide = midi_note_to_freq(basa_nota);
@@ -117,9 +132,9 @@ impl AudioModule for Oscillator {
       // self.glide.set_glide_time(vrema_glida);
       self.glide.set_target(frequency_for_glide);
 
+      let phase_increment = self.frequency / self.sample_rate;
       for sample in output.iter_mut() {
-        self.frequency = self.glide.next();
-        let phase_increment = self.frequency / self.sample_rate;
+        self.frequency = self.glide.next() + modulation(&mut self.modulator);
         self.phase += phase_increment;
         if self.phase > 1.0 {
           self.phase -= 1.0;
