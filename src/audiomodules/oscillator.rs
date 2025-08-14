@@ -5,6 +5,21 @@ use std::f32::consts::PI;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+
+struct mini_oscilatorsa {
+  phase: f32,
+  frequenchy: f32
+}
+
+impl mini_oscilatorsa {
+  fn op() -> Self {
+    Self {
+      phase:0.0,
+      frequenchy:0.0
+    }
+  }
+}
+
 pub struct Oscillator {
   phase: f32,
   frequency: f32,
@@ -12,6 +27,7 @@ pub struct Oscillator {
   synthstate: Arc<SynthState>,
   id: usize,
   glide: Glide,
+  mini_osilators: [mini_oscilatorsa; 8]
 }
 
 impl Oscillator {
@@ -24,6 +40,7 @@ impl Oscillator {
       synthstate: synthstate.clone(),
       id,
       glide: Glide::new(frequency, synthstate, sample_rate),
+      mini_osilators: [mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op(), mini_oscilatorsa::op()]
     }
   }
 }
@@ -63,40 +80,41 @@ impl AudioModule for Oscillator {
     }
 
     if poli_moda {
-      for &nota in &nazatie_knopkii {
-        let basa_nota = nota as f32 + sdvig_oktov * 12.0 + nnno + micro_zdvig;
+    for (osc_i, nota) in nazatie_knopkii.iter().take(8).enumerate() {
+        let basa_nota = *nota as f32 + sdvig_oktov * 12.0 + nnno + micro_zdvig;
+        self.mini_osilators[osc_i].frequenchy = midi_note_to_freq(basa_nota);
 
-        self.frequency = midi_note_to_freq(basa_nota);
-
-        let phase_increment = self.frequency / self.sample_rate;
+        let phase_increment = self.mini_osilators[osc_i].frequenchy / self.sample_rate;
         for sample in output.iter_mut() {
-          self.phase += phase_increment;
-          if self.phase > 1.0 {
-            self.phase -= 1.0;
-          }
-          let v = match waveforma_index {
-            0 => (self.phase * 2.0 * PI).sin(),
-            1 => {
-              if (self.phase * 2.0 * PI).sin() > 0.0 {
-                1.0
-              } else {
-                -1.0
-              }
-            },
-            2 => 2.0 * self.phase - 1.0,
-            3 => 4.0 * (self.phase - 0.5).abs() - 1.0,
-            _ => 0.0,
-          };
-          *sample += v * gromkost / nazatie_knopkii.len() as f32;
+            self.mini_osilators[osc_i].phase += phase_increment;
+            if self.mini_osilators[osc_i].phase > 1.0 {
+                self.mini_osilators[osc_i].phase -= 1.0;
+            }
+
+            let v = match waveforma_index {
+                0 => (self.mini_osilators[osc_i].phase * 2.0 * PI).sin(),
+                1 => {
+                    if (self.mini_osilators[osc_i].phase * 2.0 * PI).sin() > 0.0 {
+                        1.0
+                    } else {
+                        -1.0
+                    }
+                }
+                2 => 2.0 * self.mini_osilators[osc_i].phase - 1.0,
+                3 => 4.0 * (self.mini_osilators[osc_i].phase - 0.5).abs() - 1.0,
+                _ => 0.0,
+            };
+
+            *sample += v * gromkost / nazatie_knopkii.len() as f32;
         }
-      }
-    } else {
+    }
+} else {
       let midinota = self.synthstate.last_key.load(Ordering::Relaxed);
       let basa_nota = midinota as f32 + sdvig_oktov * 12.0 + nnno + micro_zdvig;
       let frequency_for_glide = midi_note_to_freq(basa_nota);
 
       let vrema_glida = self.synthstate.glide_time.load(Ordering::Relaxed) as f32 / 127.0 * 0.5;
-      //self.glide.set_glide_time(vrema_glida);
+      self.glide.set_glide_time(vrema_glida);
       self.glide.set_target(frequency_for_glide);
 
       for sample in output.iter_mut() {
