@@ -40,11 +40,14 @@ impl Oscillator {
       sample_rate,
       synthstate: synthstate.clone(),
       id,
+
       modulator: Modulator {
         nessesary_amplitude: 1.0,
         varying: 0.0,
-        amp: 2.0,
+        freq: 2.0,
+        step: 0.001,
       },
+
       glide: Glide::new(frequency, synthstate, sample_rate),
       mini_osilators: [
         mini_oscilatorsa::op(),
