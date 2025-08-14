@@ -31,6 +31,7 @@ pub struct SynthState {
     pub reverb_dry_wet_mix: AtomicU8,
     pub glide_time: AtomicU8,
     pub chorus_lfo_freq: AtomicU8,
+    pub volume_volume: AtomicU8,
 }
 
 impl SynthState {
@@ -59,6 +60,7 @@ impl SynthState {
             reverb_dry_wet_mix: Default::default(),
             glide_time: Default::default(),
             chorus_lfo_freq: Default::default(),
+            volume_volume: Default::default(),
         });
 
 
