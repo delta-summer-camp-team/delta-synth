@@ -100,7 +100,6 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
   let osc2 = Oscillator::new(2, 880.0, 44100.0,  synthstate.clone());
   let osc3 = Oscillator::new(3, 1320.0, 44100.0,  synthstate.clone());
   //let reverbeffect = ReverbEffect
-  //let lpf = LowPassFilter::new(1760.0 , 0.707 , 44100.0);
   let lpfgate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone());
   let lpf: LowPassFilter = LowPassFilter::new(1760.0 , 0.707 , 44100.0, lpfgate);
   let gate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone());
@@ -111,7 +110,7 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
     Arc::new(Mutex::new(osc2)), // пила
     Arc::new(Mutex::new(osc3)), // Триугольни
     //Arc::new(Mutex::new(reverbeffect)),
-    //Arc::new(Mutex::new(lpf)), // low pass filter
+    Arc::new(Mutex::new(lpf)), // low pass filter
     Arc::new(Mutex::new(gate)), // normal gate
 
   ]
