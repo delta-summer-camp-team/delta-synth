@@ -32,8 +32,7 @@ pub struct SynthState {
     pub glide_time: AtomicU8,
     pub chorus_lfo_freq: AtomicU8,
     pub chorus_base_delay_sec: AtomicU8, // базовая задержка (например 0.015)
-    pub chorus_variation_sec: AtomicU8,  // амплитуда модуляции (например 0.005)
-    pub chorus_lfo_phase: AtomicU8,      // текущее значение фазы LFO
+    pub chorus_variation_sec: AtomicU8,  // амплитуда модуляции (например 0.005)  
     pub chorus_feedback: AtomicU8,       // 0.0..<1.0
     pub chorus_mix: AtomicU8,
 }
@@ -66,7 +65,6 @@ impl SynthState {
             chorus_lfo_freq: Default::default(),
             chorus_base_delay_sec: Default::default(),
             chorus_variation_sec: Default::default(),
-            chorus_lfo_phase: Default::default(),
             chorus_feedback: Default::default(),
             chorus_mix: Default::default(),
         });

@@ -1,44 +1,32 @@
 use crate::audiomodules::AudioModule;
 use std::f32::consts::TAU;
+use crate::synth_state::SynthState;
+use std::sync::Arc;
 
+const MAX_LFO_FREQ: f32=5.0;
+const MAX_VAR_SEC: f32=0.01;
+const MAX_DELAY_SEC: f32=0.05;
 pub struct Chorus {
   sample_rate: f32,
   // максимальная задержка в сэмплах (позволяет избежать переполнения)
   max_delay_samples: usize,
   buffer: Vec<f32>,
   write_pos: usize,
+  lfo_phase: f32, // текущее значение фазы LFO
 
-  // параметры
-  base_delay_sec: f32, // базовая задержка (например 0.015)
-  variation_sec: f32,  // амплитуда модуляции (например 0.005)
-  lfo_freq: f32,       // частота LFO (Hz), например 0.2..5.0
-  lfo_phase: f32,      // текущее значение фазы LFO
-  feedback: f32,       // 0.0..<1.0
-  mix: f32,            // 0..1 (0 = только сухой, 1 = только эффект)
+  synthstate: Arc<SynthState>,           // 0..1 (0 = только сухой, 1 = только эффект)
 }
 
 impl Chorus {
-  pub fn new(
-    sample_rate: f32,
-    max_delay_ms: f32,
-    base_delay_sec: f32,
-    variation_sec: f32,
-    lfo_freq: f32,
-    feedback: f32,
-    mix: f32,
-  ) -> Self {
+  pub fn new(sample_rate: f32, max_delay_ms: f32,  lfo_phase: f32, synthstate:Arc<SynthState>) -> Self {
     let max_delay_samples = (sample_rate * (max_delay_ms / 1000.0)).ceil() as usize;
-    Chorus {
+    Self {
       sample_rate,
+      lfo_phase,
       max_delay_samples,
       buffer: vec![0.0; max_delay_samples + 2], // +2 safety for interpolation
       write_pos: 0,
-      base_delay_sec,
-      variation_sec,
-      lfo_freq,
-      lfo_phase: 0.0,
-      feedback,
-      mix,
+      synthstate,
     }
   }
 
@@ -77,8 +65,14 @@ impl Chorus {
 impl AudioModule for Chorus {
   fn process(&mut self, input: &mut [f32]) {
     for sample in input.iter_mut() {
+
+      let lfo_freq= (self.synthstate.chorus_lfo_freq.load(std::sync::atomic::Ordering::Relaxed) as f32) /127.0*MAX_LFO_FREQ;
+      let base_delay_sec= (self.synthstate.chorus_base_delay_sec.load(std::sync::atomic::Ordering::Relaxed) as f32) /127.0*MAX_DELAY_SEC;
+      let variation_sec= (self.synthstate.chorus_variation_sec.load(std::sync::atomic::Ordering::Relaxed) as f32) /127.0*MAX_VAR_SEC;
+      let feedback= (self.synthstate.chorus_feedback.load(std::sync::atomic::Ordering::Relaxed) as f32) /127.0;
+      let mix= (self.synthstate.chorus_mix.load(std::sync::atomic::Ordering::Relaxed) as f32) /127.0;
       let lfo = (self.lfo_phase).sin(); // -1..1
-      let current_delay_sec = self.base_delay_sec + lfo * self.variation_sec;
+      let current_delay_sec = base_delay_sec + lfo * variation_sec;
       let current_delay_samples = current_delay_sec * self.sample_rate;
 
       // 2) read delayed sample (fractional)
@@ -86,14 +80,14 @@ impl AudioModule for Chorus {
 
       // 3) output = dry*(1-mix) + wet*mix
       let wet = delayed;
-      *sample = (1.0 - self.mix) * *sample + self.mix * wet;
+      *sample = (1.0 - mix) * *sample + mix * wet;
 
       // 4) push input + feedback*delayed into buffer (feedback)
-      let to_write = *sample + delayed * self.feedback;
+      let to_write = *sample + delayed * feedback;
       self.push_to_buffer(to_write);
 
       // 5) advance LFO
-      self.lfo_phase += TAU * self.lfo_freq / self.sample_rate;
+      self.lfo_phase += TAU * lfo_freq / self.sample_rate;
       if self.lfo_phase > TAU {
         self.lfo_phase -= TAU;
       }
