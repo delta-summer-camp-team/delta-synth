@@ -1,7 +1,11 @@
 use crate::synth_state::SynthState;
 use crate::{audiomodules::AudioModule, Ordering};
 use std::sync::Arc;
+
+
 const SR: f32 = 44100.0; // sample rate per second
+const MAX: f32 = 4500.0;
+
 
 pub enum GateState {
   Attack,
@@ -12,10 +16,6 @@ pub enum GateState {
 }
 
 pub struct AdvGate {
-  attack: u8,  //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
-  decay: u8,   //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
-  sustain: u8, // between 0 = 0.0 and 255 = 1.0
-  release: u8, //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
 
   envelop: f32,
   gate_state: GateState,
@@ -24,19 +24,11 @@ pub struct AdvGate {
 
 impl AdvGate {
   pub fn new(
-    attack: u8,
-    decay: u8,
-    sustain: u8,
-    release: u8,
     envelop: f32,
     gate_state: GateState,
     synth_state: Arc<SynthState>,
   ) -> Self {
     Self {
-      attack,
-      decay,
-      sustain,
-      release,
       envelop,
       gate_state,
       synth_state,
@@ -60,6 +52,12 @@ impl AdvGate {
   }
 
   fn update_envelop(&mut self) {
+
+     let decay = (self.synth_state.gate_decay.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0*MAX;
+    let attack = (self.synth_state.gate_attack.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0*MAX;
+    let sustain = (self.synth_state.gate_sustain.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0;
+    let release = (self.synth_state.gate_release.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0*MAX;
+
     match self.gate_state {
       GateState::Idle => {
         //IDLE
@@ -68,11 +66,11 @@ impl AdvGate {
       },
       GateState::Attack => 'block: {
         //ATTACK
-        if self.attack == 0 {
+        if attack == 0.0 {
           self.gate_state = GateState::Decay;
           break 'block;
         }
-        self.envelop += 1.0 / (self.attack as f32 * 0.02 * SR);
+        self.envelop += 1.0 / (attack as f32 * 0.02 * SR);
 
         if self.envelop >= 1.0 {
           self.envelop = 1.0;
@@ -82,29 +80,29 @@ impl AdvGate {
       },
       GateState::Decay => 'block: {
         //DECAY
-        if self.decay == 0 {
+        if decay == 0.0 {
           self.gate_state = GateState::Sustain;
           break 'block;
         }
-        self.envelop -= 1.0 / (self.decay as f32 * 0.02 * SR);
+        self.envelop -= 1.0 / (decay  * 0.02 * SR);
 
-        if self.envelop <= (self.sustain as f32) / 255.0 {
+        if self.envelop <= (sustain ) / 255.0 {
           self.gate_state = GateState::Sustain;
         }
         self.check_unpress();
       },
       GateState::Sustain => {
         //SUSTAIN
-        self.envelop = self.sustain as f32 / 255.0;
+        self.envelop = sustain / 255.0;
         self.check_unpress();
       },
       GateState::Release => 'block: {
         //RELEASE
-        if self.release == 0 {
+        if release == 0.0 {
           self.gate_state = GateState::Idle;
           break 'block;
         }
-        self.envelop -= 1.0 / (self.release as f32 * 0.02 * SR);
+        self.envelop -= 1.0 / (release * 0.02 * SR);
 
         if self.envelop <= 0.0 {
           self.envelop = 0.0;
@@ -124,3 +122,4 @@ impl AudioModule for AdvGate {
     }
   }
 }
+

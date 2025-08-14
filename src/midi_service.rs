@@ -70,6 +70,9 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                         else if note==47{
                           synth_state_clone.gate_sustain.store(velocity, Ordering::Relaxed);
                         }
+                        else if note==33{
+                          synth_state_clone.volume_volume.store(velocity, Ordering::Relaxed);
+                        }
                         else if note==35{
                           synth_state_clone.lpf_cutoff.store(velocity, Ordering::Relaxed);
                         }
@@ -80,7 +83,7 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                           synth_state_clone.delay_mix.store(velocity, Ordering::Relaxed);
                         }
                         else if note==37{
-                          synth_state_clone.delay_feed_back.store(velocity, Ordering::Relaxed);
+                          synth_state_clone.delay_feedback.store(velocity, Ordering::Relaxed);
                         }
                         else if note==38{
                           synth_state_clone.delay_delay_time.store(velocity, Ordering::Relaxed);
@@ -94,7 +97,13 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                         else if note==41{
                           synth_state_clone.glide_time.store(velocity, Ordering::Relaxed);
                         }
-                        
+                        else if note==5{
+                          synth_state_clone.chorus_lfo_freq.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==6{
+                          synth_state_clone.chorus_lfo_freq.store(velocity, Ordering::Relaxed);
+                        }
+
                     }
                     0x90 if velocity > 0 => { // Note On
                       if let Some(i) = knopki.iter().position(|&nomer_nazato_knopki| nomer_nazato_knopki == note) {
