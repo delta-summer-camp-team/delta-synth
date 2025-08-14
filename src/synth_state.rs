@@ -8,6 +8,9 @@ use std::sync::atomic::{AtomicBool, AtomicU8, AtomicI8};
 pub struct SynthState {
     pub last_key: AtomicU8,
     pub has_key_pressed: AtomicBool,
+    pub nazatie_knopki: Mutex<Vec<u8>>,
+
+    pub poli_rezim : AtomicBool,
 
     pub gromkost: Mutex<Vec<f32>>,
 
@@ -38,6 +41,8 @@ impl SynthState {
         let state = Arc::new(Self {
             last_key: AtomicU8::new(0),
             has_key_pressed: AtomicBool::new(false),
+            nazatie_knopki: Mutex::new(Vec::new()),
+            poli_rezim: AtomicBool::new(false),
 
             gromkost: Mutex::new(vec![0.25; kol_osc]),
             waveformis: (0..kol_osc).map(|_| AtomicU8::new(0)).collect(),
@@ -57,7 +62,7 @@ impl SynthState {
             gate_release: Default::default(),
             reverb_decay_time: Default::default(),
             reverb_dry_wet_mix: Default::default(),
-            glide_time: Default::default(),
+            glide_time: AtomicU8::new(64),
             chorus_lfo_freq: Default::default(),
         });
 
