@@ -8,7 +8,12 @@ pub struct Modulator {
 }
  
 pub fn modulation(modulator: &mut Modulator) -> f32 {
+  if modulator.varying <= 1.0 {
+    modulator.varying -= 1.0
+  }
+  else{
   modulator.varying += modulator.step;
+  }
   if modulator.nessesary_amplitude <= 0.0 {
      return 0.0;
   } 
