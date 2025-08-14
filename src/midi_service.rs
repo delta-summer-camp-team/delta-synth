@@ -54,6 +54,8 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                 let note = message[1];
                 let velocity = message[2];
 
+                let mut knopki = synth_state_clone.nazatie_knopki.lock().unwrap();
+
                 match status {
                     0xB0 => {
                         if note==44 {
@@ -95,13 +97,26 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                         
                     }
                     0x90 if velocity > 0 => { // Note On
+                      if let Some(i) = knopki.iter().position(|&nomer_nazato_knopki| nomer_nazato_knopki == note) {
+                        let nomer_nazato_knopki = knopki.remove(i);
+                        knopki.push(nomer_nazato_knopki);
+                      }else{
+                          knopki.push(note);
+                        }
                         synth_state_clone.last_key.store(note, Ordering::Relaxed);
                         synth_state_clone.has_key_pressed.store(true, Ordering::Relaxed);
                     }
                     0x80 | 0x90 => { // Note Off или Note On с vel=0
-                        synth_state_clone.last_key.store(0, Ordering::Relaxed);
-                        synth_state_clone.has_key_pressed.store(false, Ordering::Relaxed);
+                        knopki.retain(|&nomer_nazato_knopki| nomer_nazato_knopki != note);
+
+                        if let Some(&last) = knopki.last() {
+                        synth_state_clone.last_key.store(last, Ordering::Relaxed);
+                        synth_state_clone.has_key_pressed.store(true, Ordering::Relaxed);
+                    }else{ 
+                      synth_state_clone.last_key.store(0, Ordering::Relaxed);
+                      synth_state_clone.has_key_pressed.store(false, Ordering::Relaxed);
                     }
+                }
                     _ => {}
                 }
             }
@@ -116,12 +131,9 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
     in_port_name
   );
 
-  input.clear();
-  stdin().read_line(&mut input)?; // wait for next enter key press
 
   println!("Closing connection");
   Ok(_conn_in)
 }
-
 
 
