@@ -42,7 +42,7 @@ impl SynthState {
             last_key: AtomicU8::new(0),
             has_key_pressed: AtomicBool::new(false),
             nazatie_knopki: Mutex::new(Vec::new()),
-            poli_rezim: AtomicBool::new(false),
+            poli_rezim: AtomicBool::new(true),
 
             gromkost: Mutex::new(vec![0.25; kol_osc]),
             waveformis: (0..kol_osc).map(|_| AtomicU8::new(0)).collect(),
