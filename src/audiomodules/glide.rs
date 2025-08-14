@@ -24,6 +24,11 @@ impl Glide {
   }
 
   pub fn next(&mut self) -> f32 {
+
+    if self.glide_time <= 0.0 {
+      self.current_freq = self.target_freq;
+      return self.current_freq;
+    }
     if self.current_freq != self.target_freq {
       let step = (self.target_freq - self.current_freq) / (self.glide_time * self.sample_rate);
       self.current_freq += step;
