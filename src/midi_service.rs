@@ -114,7 +114,7 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                         }
                         else if note==6{
                           synth_state_clone.gain_multiply_by.store(velocity, Ordering::Relaxed);
-                            
+                           
                         }
 
                     }
