@@ -17,7 +17,7 @@ impl Oscillator {
   pub fn new(id: usize, start_freq: f32, sample_rate: f32, synthstate: Arc<SynthState>) -> Self {
     Self {
       phase: 0.0,
-      glide: Glide::new(start_freq, 10.0, sample_rate),
+      glide: Glide::new(start_freq, 0.1, sample_rate),
       sample_rate,
       synthstate,
       id,

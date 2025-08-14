@@ -1,7 +1,8 @@
 use crate::synth_state::SynthState;
 use crate::{audiomodules::AudioModule, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 const SR: f32 = 44100.0; // sample rate per second
+
 
 pub enum GateState {
   Attack,
@@ -14,7 +15,7 @@ pub enum GateState {
 pub struct AdvGate {
   attack: u8,  //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
   decay: u8,   //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
-  sustain: u8, // between 0 = 0.0 and 255 = 1.0
+  sustain: u8, //between 0 = 0.0 and 255 = 1.0
   release: u8, //in 20 milliseconds, 0 = 0ms, 225 = 4500ms
 
   envelop: f32,
@@ -43,7 +44,7 @@ impl AdvGate {
     }
   }
 
-  fn get_envelop(&self) -> f32 {
+  pub fn get_envelop(&self) -> f32 {
     //GET ENVELOP
     return self.envelop;
   }
@@ -118,9 +119,9 @@ impl AdvGate {
 
 impl AudioModule for AdvGate {
   fn process(&mut self, output: &mut [f32]) {
-    for sample in output.iter_mut() {
-      self.update_envelop();
-      *sample *= self.get_envelop();
-    }
+      for sample in output.iter_mut() {
+        self.update_envelop();
+        *sample *= self.get_envelop();
+      }
   }
 }
