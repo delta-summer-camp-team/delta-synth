@@ -71,6 +71,7 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                         else if note==35{
                           synth_state_clone.lpf_cutoff.store(velocity, Ordering::Relaxed);
                         }
+
                         else if note==34{
                           synth_state_clone.lpf_res_factor.store(velocity, Ordering::Relaxed);
                         }
@@ -78,7 +79,7 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                           synth_state_clone.delay_mix.store(velocity, Ordering::Relaxed);
                         }
                         else if note==37{
-                          synth_state_clone.delay_feed_back.store(velocity, Ordering::Relaxed);
+                          synth_state_clone.delay_feedback.store(velocity, Ordering::Relaxed);
                         }
                         else if note==38{
                           synth_state_clone.delay_delay_time.store(velocity, Ordering::Relaxed);
