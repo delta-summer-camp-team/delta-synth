@@ -36,6 +36,7 @@ pub mod rotary_knob {
   }
 
   impl<'a> RotaryKnob<'a> {
+
     pub fn new(value: &'a mut f32, min: f32, max: f32) -> Self {
       Self {
         value,
@@ -205,6 +206,7 @@ impl Default for MyApp {
 }
 
 impl MyApp {
+
   // --- MIDI Setup and Communication ---
   fn setup_midi(&mut self) {
     // --- MIDI Output ---
@@ -449,13 +451,7 @@ impl MyApp {
               egui::load::SizedTexture::new(texture.id(), texture.size_vec2() / 8.0),
             ));
           }
-          ui.add_space(10.0);
-          ui.label("Slider 9");
-          let slider = egui::Slider::new(&mut self.sliders[8], 0.0..=1.0);
-          if ui.add_sized(Vec2::new(450.0, 60.0), slider).changed() {
-            cc_to_send.push((41, self.sliders[8]));
-          }
-          ui.add_space(10.0);
+
           for i in 4..6 {
             if ui
               .add(
@@ -473,28 +469,15 @@ impl MyApp {
 
         // --- Column 4 ---
         columns[3].vertical(|ui| {
-          ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
-            ui.set_height(ui.available_height() / 3.0);
-            for i in 9..11 {
-              ui.label(format!("Slider {}", i + 1));
-              let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
-              if ui.add_sized(Vec2::new(360.0, 30.0), slider).changed() {
-                cc_to_send.push((20 + i as u8, self.sliders[i]));
-              }
+          for i in 8..16 {
+            ui.label(format!("Slider {}", i + 1));
+            let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
+            if ui.add_sized(Vec2::new(240.0, 30.0), slider).changed() {
+              cc_to_send.push((33 + i as u8, self.sliders[i]));
             }
-          });
-          for i in 6..8 {
-            if ui
-              .add(
-                RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
-                  .with_label(&format!("K{}", i + 1))
-                  .with_size(156.25),
-              )
-              .changed()
-            {
-              cc_to_send.push((i as u8, self.knobs[i]));
+            if i % 2 != 0 {
+              ui.add_space(95.0); // Spacing to align with knobs
             }
-            ui.add_space(5.0);
           }
         });
 
@@ -502,20 +485,19 @@ impl MyApp {
         columns[4].vertical(|ui| {
           ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.set_height(ui.available_height() / 3.0);
-            ui.horizontal(|ui| {
-              for i in 8..10 {
-                if ui
-                  .add(
-                    RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
-                      .with_label(&format!("K{}", i + 1))
-                      .with_size(156.25),
-                  )
-                  .changed()
-                {
-                  cc_to_send.push((i as u8, self.knobs[i]));
-                }
+            for i in 0..4 {
+              if ui
+                .add(
+                  RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
+                    .with_label(&format!("K{}", i + 1))
+                    .with_size(187.5),
+                )
+                .changed()
+              {
+                cc_to_send.push((i as u8, self.knobs[i]));
               }
-            });
+              ui.add_space(5.0);
+            };
             ui.label("Slider 12");
             let slider = egui::Slider::new(&mut self.sliders[11], 0.0..=1.0);
             if ui.add_sized(Vec2::new(360.0, 30.0), slider).changed() {
@@ -727,6 +709,7 @@ impl MyApp {
 
 // --- eframe App Implementation ---
 impl eframe::App for MyApp {
+
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     // Handle incoming MIDI messages
     for msg in self.midi_rx.try_iter() {
@@ -760,6 +743,7 @@ impl eframe::App for MyApp {
       let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
       self.antonui_texture =
         Some(ctx.load_texture("antonui", color_image, Default::default()));
+
     }
 
     // Set the visuals for the entire application
@@ -780,6 +764,7 @@ impl eframe::App for MyApp {
 
 // --- Main Function ---
 pub fn run() -> Result<(), eframe::Error> {
+
   let mut app = MyApp::default();
   app.setup_midi();
   let options = eframe::NativeOptions {
