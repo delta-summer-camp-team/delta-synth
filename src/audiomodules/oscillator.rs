@@ -21,9 +21,9 @@ impl Oscillator {
       phase: 0.0,
       frequency,
       sample_rate,
-      synthstate,
+      synthstate: synthstate.clone(),
       id,
-      glide: Glide::new(frequency, glide_time, sample_rate),
+      glide: Glide::new(frequency, synthstate, sample_rate),
     }
   }
 }
@@ -96,7 +96,7 @@ impl AudioModule for Oscillator {
       let frequency_for_glide = midi_note_to_freq(basa_nota);
 
       let vrema_glida = self.synthstate.glide_time.load(Ordering::Relaxed) as f32 / 127.0 * 0.5;
-      self.glide.set_glide_time(vrema_glida);
+      //self.glide.set_glide_time(vrema_glida);
       self.glide.set_target(frequency_for_glide);
 
       for sample in output.iter_mut() {

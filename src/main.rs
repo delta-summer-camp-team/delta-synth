@@ -62,7 +62,7 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
   let osc1 = Oscillator::new(1, 660.0, 44100.0,  synthstate.clone());
   let osc2 = Oscillator::new(2, 880.0, 44100.0,  synthstate.clone());
   let osc3 = Oscillator::new(3, 1320.0, 44100.0,  synthstate.clone());
-  let gate = AdvGate::new(7,7,255,7,1.0,GateState::Idle,synthstate.clone());
+  let gate = AdvGate::new(7.0,GateState::Idle,synthstate.clone());
   //let reverbeffect = ReverbEffect::new(0.5, 5.0, 44100);
 
 

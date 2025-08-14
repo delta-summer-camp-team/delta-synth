@@ -1,9 +1,9 @@
 use crate::audiomodules::AudioModule;
+use crate::synth_state::SynthState;
+use std::sync::Arc;
 
-#[derive(Default)]
 pub struct LowPassFilter {
-    pub cutoff: f32,      // Hz (f0)
-    pub res_factor: f32,  // 0..1 mapped to Q
+    synthstate: Arc<SynthState>,
     sample_rate: f32,
 
     // biquad coefficients (normalized so a0 = 1)
@@ -19,10 +19,9 @@ pub struct LowPassFilter {
 }
 
 impl LowPassFilter {
-    pub fn new(cutoff: f32, res_factor: f32, sample_rate: f32) -> Self {
+    pub fn new(synthstate: Arc<SynthState>, sample_rate: f32) -> Self {
         let mut s = Self {
-            cutoff,
-            res_factor,
+            synthstate,
             sample_rate,
             b0: 0.0, b1: 0.0, b2: 0.0, a1: 0.0, a2: 0.0,
             z1: 0.0, z2: 0.0,
@@ -35,11 +34,14 @@ impl LowPassFilter {
 
     #[inline]
     fn update_coeffs(&mut self) {
+
+        let cutoff = self.synthstate.lpf_cutoff.load(std::sync::atomic::Ordering::Relaxed) as f32 / 127.0 * (self.sample_rate / 2.0);
+        let res_factor = self.synthstate.lpf_res_factor.load(std::sync::atomic::Ordering::Relaxed) as f32 / 127.0;
         let fs = self.sample_rate.max(1.0);
-        let q  = self.res_factor;
+        let q  = res_factor;
 
         // keep cutoff strictly inside (0, fs/2)
-        let f0 = self.cutoff.clamp(1e-3, 0.499 * fs);
+        let f0 = cutoff.clamp(1e-3, 0.499 * fs);
 
         // Bilinear transform with pre-warping:
         // K = tan(pi * f0 / fs)
@@ -61,15 +63,17 @@ impl LowPassFilter {
         self.a1 = a1 / a0;
         self.a2 = a2 / a0;
 
-        self.last_cutoff = self.cutoff;
-        self.last_res_factor = self.res_factor;
+        self.last_cutoff = cutoff;
+        self.last_res_factor = res_factor;
     }
 
     // Same signature you’re already using in main.
     #[inline]
     fn filter(&mut self, x: f32) -> f32 {
         // Recompute if parameters changed
-        if self.cutoff != self.last_cutoff || self.res_factor != self.last_res_factor {
+        let cutoff = self.synthstate.lpf_cutoff.load(std::sync::atomic::Ordering::Relaxed) as f32 / 127.0 * (self.sample_rate / 2.0);
+        let res_factor = self.synthstate.lpf_res_factor.load(std::sync::atomic::Ordering::Relaxed) as f32 / 127.0;
+        if cutoff != self.last_cutoff || res_factor != self.last_res_factor {
             self.update_coeffs();
         }
 
