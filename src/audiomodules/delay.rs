@@ -27,12 +27,12 @@ impl Delay {
 
 impl AudioModule for Delay {
   fn process(&mut self, input: &mut [f32]) {
-    let delay_time = (self.synthstate.delay_delay_time.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0*MAX_DELAY_SEC;
+    let mut delay_time = (self.synthstate.delay_delay_time.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0*MAX_DELAY_SEC;
     let feedback = (self.synthstate.delay_feedback.load(std::sync::atomic::Ordering::Relaxed) as f32) /127.0;
     let mix = (self.synthstate.delay_mix.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0;
-
+    
     if delay_time==0.0{
-      delay_time==0.01;
+      delay_time=0.01;
     }
 
     let delayed_sample = delay_time * self.sample_rate;
