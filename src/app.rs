@@ -436,7 +436,7 @@ impl MyApp {
             ui.label(format!("Slider {}", i + 1));
             let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
             if ui.add_sized(Vec2::new(240.0, 30.0), slider).changed() {
-              cc_to_send.push((33 + i as u8, self.sliders[i]));
+              cc_to_send.push((11 + i as u8, self.sliders[i]));
             }
             if i % 2 != 0 {
               ui.add_space(95.0); // Spacing to align with knobs
@@ -485,7 +485,7 @@ impl MyApp {
         columns[4].vertical(|ui| {
           ui.with_layout(egui::Layout::top_down(egui::Align::Center), |ui| {
             ui.set_height(ui.available_height() / 3.0);
-            for i in 0..4 {
+            for i in 8..12 {
               if ui
                 .add(
                   RotaryKnob::new(&mut self.knobs[i], 0.0, 1.0)
