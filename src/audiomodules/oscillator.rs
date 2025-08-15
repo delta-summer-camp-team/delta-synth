@@ -33,7 +33,6 @@ pub struct Oscillator {
 
 impl Oscillator {
   pub fn new(id: usize, frequency: f32, sample_rate: f32, synthstate: Arc<SynthState>) -> Self {
-    let glide_time = synthstate.glide_time.load(Ordering::Relaxed) as f32 / 127.0 * 0.5;
     Self {
       phase: 0.0,
       frequency,
@@ -42,9 +41,9 @@ impl Oscillator {
       id,
 
       modulator: Modulator {
-        nessesary_amplitude: 1.0,
+        nessesary_amplitude: 5.0,
         varying: 0.0,
-        freq: 2.0,
+        freq: 100.0,
         step: 0.001,
       },
 
