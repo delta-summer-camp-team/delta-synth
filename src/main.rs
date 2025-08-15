@@ -67,9 +67,9 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
   let osc2 = Oscillator::new(2, 880.0, 44100.0,  synthstate.clone());
   let osc3 = Oscillator::new(3, 1320.0, 44100.0,  synthstate.clone());
   let gate = AdvGate::new(7.0,GateState::Idle,synthstate.clone());
-  //let reverbeffect = ReverbEffect::new(synthstate.clone(), 44100);
+  let reverbeffect = ReverbEffect::new(synthstate.clone(), 44100);
   let chorus = Chorus::new(44100.0, 100.0, 0.0, synthstate.clone());
-  //let delay = Delay::new(44100.0, 1.0, synthstate.clone());
+  let delay = Delay::new(44100.0, 1.0, synthstate.clone());
   let gain = Gain::new(synthstate.clone());
   let low_pass_filter = LowPassFilter::new(synthstate.clone(), 44100.0);
 
@@ -80,9 +80,9 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
     Arc::new(Mutex::new(osc2)), // пила
     Arc::new(Mutex::new(osc3)), // Триугольни
     Arc::new(Mutex::new(gate)),
-    //Arc::new(Mutex::new(reverbeffect)),
-   Arc::new(Mutex::new(chorus)),
-  //Arc::new(Mutex::new(delay)),
+    Arc::new(Mutex::new(reverbeffect)),
+    Arc::new(Mutex::new(chorus)),
+    Arc::new(Mutex::new(delay)),
     Arc::new(Mutex::new(gain)),
     Arc::new(Mutex::new(low_pass_filter)),
     
