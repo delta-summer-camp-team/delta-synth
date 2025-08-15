@@ -68,10 +68,6 @@ impl LowPassFilter {
         self.last_res_factor = self.res_factor;
     }
 
-    pub fn change_cutoff(&mut self, cutoff_input:f32){
-        self.cutoff = cutoff_input;
-        self.update_coeffs();
-    }
     // Same signature you’re already using in main.
     #[inline]
     fn filter(&mut self, x: f32) -> f32 {
