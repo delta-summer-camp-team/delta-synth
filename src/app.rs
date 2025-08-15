@@ -713,6 +713,11 @@ impl eframe::App for MyApp {
   fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
     // Handle incoming MIDI messages
     for msg in self.midi_rx.try_iter() {
+      // Forward the MIDI message directly to the output
+      if let Some(ref mut conn) = self.midi_out {
+        let _ = conn.send(&msg);
+      }
+
       if let [status, key, _] = msg.as_slice() {
         if (status & 0xF0) == 0x90 {
           self.keyboard.add_key(*key);
