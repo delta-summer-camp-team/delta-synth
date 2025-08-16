@@ -20,18 +20,20 @@ pub struct AdvGate {
   envelop: f32,
   gate_state: GateState,
   synth_state: Arc<SynthState>,
+  last_key_processed: u8,
 }
 
 impl AdvGate {
   pub fn new(
-    envelop: f32,
+    _envelop: f32,
     gate_state: GateState,
     synth_state: Arc<SynthState>,
   ) -> Self {
     Self {
-      envelop,
+      envelop: 0.0,
       gate_state,
       synth_state,
+      last_key_processed: 0,
     }
   }
 
@@ -45,13 +47,14 @@ impl AdvGate {
       self.gate_state = GateState::Release;
     }
   }
-  fn check_press(&mut self) {
-    if self.synth_state.has_key_pressed.load(Ordering::Relaxed) == true {
-      self.gate_state = GateState::Attack;
-    }
-  }
 
   fn update_envelop(&mut self) {
+    let last_key = self.synth_state.last_key.load(Ordering::Relaxed);
+    if self.synth_state.has_key_pressed.load(Ordering::Relaxed) && self.last_key_processed != last_key {
+        self.last_key_processed = last_key;
+        self.gate_state = GateState::Attack;
+        self.envelop = 0.0;
+    }
 
      let decay = (self.synth_state.gate_decay.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0*MAX;
     let attack = (self.synth_state.gate_attack.load(std::sync::atomic::Ordering::Relaxed) as f32)/127.0*MAX;
@@ -62,7 +65,6 @@ impl AdvGate {
       GateState::Idle => {
         //IDLE
         self.envelop = 0.0;
-        self.check_press();
       },
       GateState::Attack => 'block: {
         //ATTACK
@@ -108,7 +110,6 @@ impl AdvGate {
           self.envelop = 0.0;
           self.gate_state = GateState::Idle;
         }
-        self.check_press();
       },
     }
   }
@@ -122,4 +123,3 @@ impl AudioModule for AdvGate {
     }
   }
 }
-
