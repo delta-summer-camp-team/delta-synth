@@ -100,8 +100,21 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                         else if note==5{
                           synth_state_clone.chorus_lfo_freq.store(velocity, Ordering::Relaxed);
                         }
+                        else if note==9{
+                          synth_state_clone.chorus_base_delay_sec.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==10{
+                          synth_state_clone.chorus_variation_sec.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==11{
+                          synth_state_clone.chorus_feedback.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==12{
+                          synth_state_clone.chorus_mix.store(velocity, Ordering::Relaxed);
+                        }
                         else if note==6{
-                          synth_state_clone.chorus_lfo_freq.store(velocity, Ordering::Relaxed);
+                          synth_state_clone.gain_multiply_by.store(velocity, Ordering::Relaxed);
+                           
                         }
 
                     }
