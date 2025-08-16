@@ -161,7 +161,6 @@ pub struct MyApp {
   pub button1_pressed: bool,
   pub button3_pressed: bool,
   pub logo_texture: Option<TextureHandle>,
-  pub antonui_texture: Option<TextureHandle>,
   pub current_style: GUIStyle,
   pub app_state: AppState,
   pub is_fullscreen: bool,
@@ -189,7 +188,6 @@ impl Default for MyApp {
       button1_pressed: false,
       button3_pressed: false,
       logo_texture: None,
-      antonui_texture: None,
       current_style: GUIStyle::DarkMode,
       app_state: AppState::StartScreen,
       is_fullscreen: true,
@@ -366,14 +364,6 @@ impl MyApp {
         }
         ui.add_space(10.0);
         if ui
-          .add(Button::new("Anton Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0))
-          .clicked()
-        {
-          self.current_style = GUIStyle::AntonMode;
-          self.app_state = AppState::MainApp;
-        }
-        ui.add_space(10.0);
-        if ui
           .add(Button::new("Doom Mode").min_size(Vec2::new(200.0, 50.0)).rounding(10.0))
           .clicked()
         {
@@ -465,7 +455,7 @@ impl MyApp {
             }
             ui.add_space(5.0);
           }
-          for i in 12..13 {
+          for i in 16..17 {
             ui.label(format!("Slider {}", i + 1));
             let slider = egui::Slider::new(&mut self.sliders[i], 0.0..=1.0);
             if ui.add_sized(Vec2::new(240.0, 30.0), slider).changed() {
@@ -748,19 +738,6 @@ impl eframe::App for MyApp {
       let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
       self.logo_texture = Some(ctx.load_texture("logo", color_image, Default::default()));
     }
-
-    if self.antonui_texture.is_none() {
-      let image_bytes = include_bytes!("../antonui.jpg");
-      let image = image::load_from_memory(image_bytes).expect("Failed to load antonui image");
-      let size = [image.width() as _, image.height() as _];
-      let image_buffer = image.to_rgba8();
-      let pixels = image_buffer.as_flat_samples();
-      let color_image = egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
-      self.antonui_texture =
-        Some(ctx.load_texture("antonui", color_image, Default::default()));
-
-    }
-
     // Set the visuals for the entire application
     ctx.set_visuals(self.current_style.get_visuals());
 
