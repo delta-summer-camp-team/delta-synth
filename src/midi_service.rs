@@ -111,6 +111,62 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
                         }
                         else if note==10{
                           synth_state_clone.chorus_variation_sec.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note == 0{
+                          let mut gromkost = synth_state_clone.gromkost.lock().unwrap();
+                          gromkost[0] = velocity as f32 / 127.0;
+                        }       
+                        else if note == 1{
+                          let mut gromkost = synth_state_clone.gromkost.lock().unwrap();
+                          gromkost[1] = velocity as f32 / 127.0;
+                        }    
+                        else if note == 2{
+                          let mut gromkost = synth_state_clone.gromkost.lock().unwrap();
+                          gromkost[2] = velocity as f32 / 127.0;
+                        }    
+                        else if note == 3{
+                          let mut gromkost = synth_state_clone.gromkost.lock().unwrap();
+                          gromkost[3] = velocity as f32 / 127.0;
+                        }
+                        else if note == 11{
+                          let mut sdvig_oktov = synth_state_clone.sdvig_oktov[0].store(((velocity as f32 / 127.0) *6.0 - 3.0) as i8, Ordering::Relaxed);
+                        } 
+                        else if note == 13{
+                          let mut sdvig_oktov = synth_state_clone.sdvig_oktov[1].store(((velocity as f32 / 127.0) *6.0 - 3.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 15{
+                          let mut sdvig_oktov = synth_state_clone.sdvig_oktov[2].store(((velocity as f32 / 127.0) *6.0 - 3.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 17{
+                          let mut sdvig_oktov = synth_state_clone.sdvig_oktov[3].store(((velocity as f32 / 127.0) *6.0 - 3.0) as i8, Ordering::Relaxed);
+                        }   
+                        else if note == 12{
+                          synth_state_clone.nnno[0].store(((velocity as f32 / 127.0) *14.0 - 7.0) as i8, Ordering::Relaxed);
+                        } 
+                        else if note == 14{
+                          synth_state_clone.nnno[1].store(((velocity as f32 / 127.0) *14.0 - 7.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 16{
+                          synth_state_clone.nnno[2].store(((velocity as f32 / 127.0) *14.0 - 7.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 18{
+                          synth_state_clone.nnno[3].store(((velocity as f32 / 127.0) *14.0 - 7.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 41{
+                          let mut micro_zdvig = synth_state_clone.micro_zdvig.lock().unwrap();
+                          micro_zdvig[0] = velocity as f32 / 127.0 -0.5;
+                        }
+                        else if note == 43{
+                          let mut micro_zdvig = synth_state_clone.micro_zdvig.lock().unwrap();
+                          micro_zdvig[1] = velocity as f32 / 127.0 -0.5;
+                        }
+                        else if note == 45{
+                          let mut micro_zdvig = synth_state_clone.micro_zdvig.lock().unwrap();
+                          micro_zdvig[2] = velocity as f32 / 127.0 -0.5;
+                        }
+                        else if note == 47{
+                          let mut micro_zdvig = synth_state_clone.micro_zdvig.lock().unwrap();
+                          micro_zdvig[3] = velocity as f32 / 127.0 -0.5;
                         }       
                       }
                     0x90 if velocity > 0 => { // Note On

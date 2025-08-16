@@ -41,7 +41,7 @@ impl Oscillator {
       id,
 
       modulator: Modulator {
-        nessesary_amplitude: 5.0,
+        synthstate: synthstate.clone(),
         varying: 0.0,
         freq: 100.0,
         step: 0.001,

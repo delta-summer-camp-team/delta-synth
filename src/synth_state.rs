@@ -39,6 +39,7 @@ pub struct SynthState {
     pub chorus_feedback: AtomicU8,
     pub chorus_mix: AtomicU8,
     pub volume_volume: AtomicU8,
+    pub modulator_nessesary_amplitude: AtomicU8,
 }
 
 impl SynthState {
@@ -74,6 +75,7 @@ impl SynthState {
             chorus_variation_sec: AtomicU8::new(3),
             chorus_feedback: AtomicU8::new(32),
             chorus_mix: AtomicU8::new(32),
+            modulator_nessesary_amplitude: AtomicU8::new(64),
         });
 
 
