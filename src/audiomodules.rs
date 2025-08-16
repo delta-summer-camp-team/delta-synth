@@ -6,6 +6,7 @@ pub mod glide;
 pub mod low_pass_filter;
 pub mod oscillator;
 pub mod reverb;
+pub mod volume;
 pub mod modulator;
 
 pub trait AudioModule: Send + Sync {

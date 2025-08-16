@@ -58,53 +58,117 @@ pub fn initiate_midi_connection(synth_state: Arc<SynthState>) -> Result<MidiInpu
 
                 match status {
                     0xB0 => {
-                        if note==44 {
+                        if note==31 {
                           synth_state_clone.gate_attack.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==45{
+                        else if note==33{
                           synth_state_clone.gate_decay.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==46{
+                        else if note==34{
                           synth_state_clone.gate_release.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==47{
+                        else if note==56{
                           synth_state_clone.gate_sustain.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==33{
+                        else if note==1{
                           synth_state_clone.volume_volume.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==35{
+                        else if note==20{
                           synth_state_clone.lpf_cutoff.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==34{
+                        else if note==21{
                           synth_state_clone.lpf_res_factor.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==36{
+                        else if note==22{
                           synth_state_clone.delay_mix.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==37{
+                        else if note==23{
                           synth_state_clone.delay_feedback.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==38{
+                        else if note==25{
                           synth_state_clone.delay_delay_time.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==39{
+                        else if note==26{
                           synth_state_clone.reverb_decay_time.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==40{
+                        else if note==27{
                           synth_state_clone.reverb_dry_wet_mix.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==41{
+                        else if note==28{
                           synth_state_clone.glide_time.store(velocity, Ordering::Relaxed);
                         }
+                        else if note==4{
+                          synth_state_clone.chorus_lfo_freq.store(velocity, Ordering::Relaxed);
+                        }
                         else if note==5{
-                          synth_state_clone.chorus_lfo_freq.store(velocity, Ordering::Relaxed);
+                          synth_state_clone.chorus_base_delay_sec.store(velocity, Ordering::Relaxed);
                         }
-                        else if note==6{
-                          synth_state_clone.chorus_lfo_freq.store(velocity, Ordering::Relaxed);
+                        else if note==8{
+                          synth_state_clone.chorus_feedback.store(velocity, Ordering::Relaxed);
                         }
-
-                    }
+                        else if note==9{
+                          synth_state_clone.chorus_mix.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note==10{
+                          synth_state_clone.chorus_variation_sec.store(velocity, Ordering::Relaxed);
+                        }
+                        else if note == 0{
+                          let mut gromkost = synth_state_clone.gromkost.lock().unwrap();
+                          gromkost[0] = velocity as f32 / 127.0;
+                        }       
+                        else if note == 1{
+                          let mut gromkost = synth_state_clone.gromkost.lock().unwrap();
+                          gromkost[1] = velocity as f32 / 127.0;
+                        }    
+                        else if note == 2{
+                          let mut gromkost = synth_state_clone.gromkost.lock().unwrap();
+                          gromkost[2] = velocity as f32 / 127.0;
+                        }    
+                        else if note == 3{
+                          let mut gromkost = synth_state_clone.gromkost.lock().unwrap();
+                          gromkost[3] = velocity as f32 / 127.0;
+                        }
+                        else if note == 11{
+                          let mut sdvig_oktov = synth_state_clone.sdvig_oktov[0].store(((velocity as f32 / 127.0) *6.0 - 3.0) as i8, Ordering::Relaxed);
+                        } 
+                        else if note == 13{
+                          let mut sdvig_oktov = synth_state_clone.sdvig_oktov[1].store(((velocity as f32 / 127.0) *6.0 - 3.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 15{
+                          let mut sdvig_oktov = synth_state_clone.sdvig_oktov[2].store(((velocity as f32 / 127.0) *6.0 - 3.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 17{
+                          let mut sdvig_oktov = synth_state_clone.sdvig_oktov[3].store(((velocity as f32 / 127.0) *6.0 - 3.0) as i8, Ordering::Relaxed);
+                        }   
+                        else if note == 12{
+                          synth_state_clone.nnno[0].store(((velocity as f32 / 127.0) *14.0 - 7.0) as i8, Ordering::Relaxed);
+                        } 
+                        else if note == 14{
+                          synth_state_clone.nnno[1].store(((velocity as f32 / 127.0) *14.0 - 7.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 16{
+                          synth_state_clone.nnno[2].store(((velocity as f32 / 127.0) *14.0 - 7.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 18{
+                          synth_state_clone.nnno[3].store(((velocity as f32 / 127.0) *14.0 - 7.0) as i8, Ordering::Relaxed);
+                        }
+                        else if note == 41{
+                          let mut micro_zdvig = synth_state_clone.micro_zdvig.lock().unwrap();
+                          micro_zdvig[0] = velocity as f32 / 127.0 -0.5;
+                        }
+                        else if note == 43{
+                          let mut micro_zdvig = synth_state_clone.micro_zdvig.lock().unwrap();
+                          micro_zdvig[1] = velocity as f32 / 127.0 -0.5;
+                        }
+                        else if note == 45{
+                          let mut micro_zdvig = synth_state_clone.micro_zdvig.lock().unwrap();
+                          micro_zdvig[2] = velocity as f32 / 127.0 -0.5;
+                        }
+                        else if note == 47{
+                          let mut micro_zdvig = synth_state_clone.micro_zdvig.lock().unwrap();
+                          micro_zdvig[3] = velocity as f32 / 127.0 -0.5;
+                        }       
+                      }
                     0x90 if velocity > 0 => { // Note On
                       if let Some(i) = knopki.iter().position(|&nomer_nazato_knopki| nomer_nazato_knopki == note) {
                         let nomer_nazato_knopki = knopki.remove(i);

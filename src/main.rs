@@ -12,6 +12,10 @@ mod midi_service;
 use crate::{audiomodules::{advanced_gate::{AdvGate, GateState}, reverb::ReverbEffect}, synth_state::SynthState};
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{Device, SupportedStreamConfig};
+use crate::audiomodules::low_pass_filter::LowPassFilter;
+use crate::audiomodules::gain::Gain;
+use crate::audiomodules::delay::Delay;
+use crate::audiomodules::chorus::Chorus;
 
 
 
@@ -63,7 +67,11 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
   let osc2 = Oscillator::new(2, 880.0, 44100.0,  synthstate.clone());
   let osc3 = Oscillator::new(3, 1320.0, 44100.0,  synthstate.clone());
   let gate = AdvGate::new(7.0,GateState::Idle,synthstate.clone());
-  let reverbeffect = ReverbEffect::new(0.5, 5.0, 44100);
+  let reverbeffect = ReverbEffect::new(synthstate.clone(), 44100);
+  let chorus = Chorus::new(44100.0, 100.0, 0.0, synthstate.clone());
+  let delay = Delay::new(44100.0, 1.0, synthstate.clone());
+  let gain = Gain::new(synthstate.clone());
+  let low_pass_filter = LowPassFilter::new(synthstate.clone(), 44100.0);
 
 
   vec![
@@ -73,6 +81,10 @@ fn build_audio_modules(synthstate: Arc<SynthState>) -> Vec<Arc<Mutex<dyn AudioMo
     Arc::new(Mutex::new(osc3)), // Триугольни
     Arc::new(Mutex::new(gate)),
     Arc::new(Mutex::new(reverbeffect)),
+    Arc::new(Mutex::new(chorus)),
+    Arc::new(Mutex::new(delay)),
+    Arc::new(Mutex::new(gain)),
+    Arc::new(Mutex::new(low_pass_filter)),
     
   ]
 }

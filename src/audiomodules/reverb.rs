@@ -1,8 +1,10 @@
 use crate::audiomodules::AudioModule;
+use crate::synth_state::SynthState;
+use std::sync::Arc;
 
+const MAX:f32=6.0;
 pub struct ReverbEffect {
-  dry_wet_mix: f32,
-  decay_time: f32,
+  synthstate: Arc<SynthState>,
   pre_delay: DelayLine,
   early_reflections: EarlyReflections,
   late_reflections: LateReflections,
@@ -81,12 +83,14 @@ impl AllPassFilter {
 struct LateReflections {
   comb_filters: Vec<CombFilter>,
   all_pass_filters: Vec<AllPassFilter>,
+  synthstate: Arc<SynthState>,
 }
 
 impl LateReflections {
-  fn new(decay_time: f32, sample_rate: usize) -> Self {
+  fn new(synthstate: Arc<SynthState>, sample_rate: usize) -> Self {
     let comb_delays = [1557, 1617, 1491, 1422];
     let all_pass_delays = [225, 556];
+    let decay_time=synthstate.reverb_decay_time.load(std::sync::atomic::Ordering::Relaxed) as f32 / 127.0 * MAX;
 
     let comb_filters = comb_delays
       .iter()
@@ -117,6 +121,7 @@ impl LateReflections {
       .collect();
 
     Self {
+      synthstate,
       comb_filters,
       all_pass_filters,
     }
@@ -138,6 +143,7 @@ impl LateReflections {
 impl AudioModule for ReverbEffect {
   fn process(&mut self, output: &mut [f32]) {
     for sample in output.iter_mut() {
+      let dry_wet_mix=self.synthstate.reverb_dry_wet_mix.load(std::sync::atomic::Ordering::Relaxed) as f32 / 127.0;
       let dry_sample = *sample;
 
       let delayed_sample = self.pre_delay.process_sample(dry_sample);
@@ -147,19 +153,18 @@ impl AudioModule for ReverbEffect {
 
       let wet_sample = early + late;
 
-      *sample = (dry_sample * (1.0 - self.dry_wet_mix)) + (wet_sample * self.dry_wet_mix);
+      *sample = (dry_sample * (1.0 - dry_wet_mix)) + (wet_sample * dry_wet_mix);
     }
   }
 }
 
 impl ReverbEffect {
-  pub fn new(dry_wet_mix: f32, decay_time: f32, sample_rate: usize) -> Self {
+  pub fn new(synthstate:  Arc<SynthState>, sample_rate: usize) -> Self {
     let pre_delay_samples = (0.05 * sample_rate as f32) as usize;
     let early_reflections_buffer_len = 6000;
 
     Self {
-      dry_wet_mix,
-      decay_time,
+      synthstate : synthstate.clone() ,
       pre_delay: DelayLine {
         buffer: vec![0.0; pre_delay_samples],
         write_head: 0,
@@ -170,7 +175,7 @@ impl ReverbEffect {
           write_head: 0,
         },
       },
-      late_reflections: LateReflections::new(decay_time, sample_rate),
+      late_reflections: LateReflections::new(synthstate, sample_rate),
     }
   }
 }
