@@ -204,7 +204,6 @@ impl Default for MyApp {
 }
 
 impl MyApp {
-
   // --- MIDI Setup and Communication ---
   fn setup_midi(&mut self) {
     // --- MIDI Output ---
