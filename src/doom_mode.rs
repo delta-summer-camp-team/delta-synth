@@ -3,7 +3,7 @@
 // Immersive application based on the original Doom source code style.
 // This code has been restructured to be more modular and function like the original C codebase.
 
-use crate::app::MyApp;
+use crate::app::{MyApp, AppState};
 use eframe::egui::{self, Color32, Key, Pos2, Rect, Stroke, Vec2};
 use std::time::{Duration, Instant};
 use rand::{Rng, rng};
@@ -510,13 +510,23 @@ fn world_to_screen(player_pos: Vec2, rect: Rect, world_pos: Vec2, player_dir: Ve
 
 pub fn draw_doom_screen(app: &mut MyApp, ctx: &egui::Context) {
   if app.doom_state.game_over {
-    draw_game_over_screen(&mut app.doom_state, ctx);
+    draw_game_over_screen(app, ctx);
     return;
   }
   if app.doom_state.game_won {
-    draw_victory_screen(&mut app.doom_state, ctx);
+    draw_victory_screen(app, ctx);
     return;
   }
+
+  egui::Area::new("doom_top_left_corner".into())
+    .anchor(egui::Align2::LEFT_TOP, [10.0, 10.0])
+    .show(ctx, |ui| {
+      if ui.button("Return to Main Menu").clicked() {
+        app.app_state = AppState::StartScreen;
+        app.doom_state = DoomState::default();
+      }
+    });
+
 
   egui::CentralPanel::default().show(ctx, |ui| {
     let dt = ui.input(|i| i.unstable_dt);
@@ -742,7 +752,7 @@ fn draw_hud(ui: &mut egui::Ui, state: &DoomState) {
     });
 }
 
-fn draw_game_over_screen(state: &mut DoomState, ctx: &egui::Context) {
+fn draw_game_over_screen(app: &mut MyApp, ctx: &egui::Context) {
   egui::CentralPanel::default().show(ctx, |ui| {
     ui.vertical_centered(|ui| {
       ui.add_space(50.0);
@@ -751,13 +761,17 @@ fn draw_game_over_screen(state: &mut DoomState, ctx: &egui::Context) {
       ui.add_space(20.0);
 
       if ui.button("Try Again").clicked() {
-        *state = DoomState::default();
+        app.doom_state = DoomState::default();
+      }
+      if ui.button("Return to Main Menu").clicked() {
+        app.app_state = AppState::StartScreen;
+        app.doom_state = DoomState::default();
       }
     });
   });
 }
 
-fn draw_victory_screen(state: &mut DoomState, ctx: &egui::Context) {
+fn draw_victory_screen(app: &mut MyApp, ctx: &egui::Context) {
   egui::CentralPanel::default().show(ctx, |ui| {
     ui.vertical_centered(|ui| {
       ui.add_space(50.0);
@@ -766,7 +780,11 @@ fn draw_victory_screen(state: &mut DoomState, ctx: &egui::Context) {
       ui.add_space(20.0);
 
       if ui.button("Play Again").clicked() {
-        *state = DoomState::default();
+        app.doom_state = DoomState::default();
+      }
+      if ui.button("Return to Main Menu").clicked() {
+        app.app_state = AppState::StartScreen;
+        app.doom_state = DoomState::default();
       }
     });
   });
