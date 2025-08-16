@@ -18,8 +18,8 @@ pub fn modulation(modulator: &mut Modulator) -> f32 {
   else{
   modulator.varying += modulator.step;
   }
-  if modulator.nessesary_amplitude <= 0.0 {
+  if nessesary_amplitude <= 0.0 {
      return 0.0;
   } 
-  return modulator.nessesary_amplitude*(PI*modulator.varying*modulator.freq).sin();
+  return nessesary_amplitude*(PI*modulator.varying*modulator.freq).sin();
 } 
